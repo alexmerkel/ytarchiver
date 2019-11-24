@@ -76,6 +76,13 @@ def processFile(name, subLang, db):
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
     videoFileComp = os.path.splitext(name)
+    #Get language for ffmpeg
+    if subLang == "de":
+        lang = "deu"
+    elif subLang == "en":
+        lang = "eng"
+    else:
+        lang = subLang
     #If subtitles, read and embed them
     subs = None
     if subLang:
@@ -85,13 +92,6 @@ def processFile(name, subLang, db):
             #Read subtitle file
             with open(subFile, 'r') as f:
                 subs = f.read()
-            #Get subtitle language for ffmpeg
-            if subLang == "de":
-                lang = "deu"
-            elif subLang == "en":
-                lang = "eng"
-            else:
-                lang = subLang
             cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "panic", "-i", name, "-sub_charenc", "UTF-8", "-i", subFile, "-map", "0:v", "-map", "0:a", "-c", "copy", "-map", "1", "-c:s:0", "mov_text", "-metadata:s:s:0", "language=" + lang, "-metadata:s:a:0", "language=" + lang, tmpFile]
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             process.wait()
@@ -99,6 +99,12 @@ def processFile(name, subLang, db):
             os.remove(subFile)
         except IOError:
             pass
+    #If no subtitles added, change audio language at least
+    if not subs:
+        cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "panic", "-i", name, "-map", "0:v", "-map", "0:a", "-c", "copy", "-metadata:s:a:0", "language=" + lang, tmpFile]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        process.wait()
+        shutil.move(tmpFile, name)
     #Read description
     desc = None
     try:
