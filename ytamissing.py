@@ -18,7 +18,7 @@ def findMissing(args):
         if not os.path.isdir(path):
             print("No directory specified")
             return
-    except OSError:
+    except (OSError, IndexError):
         print("No directory specified")
         return
     #Read IDs from file
@@ -66,8 +66,9 @@ def findMissing(args):
         print("Video \"{}\" not in database (ID: {})".format(fFile["name"], fFile["id"]))
     if not found:
         print("No discrepancies between files and database")
+    #Close db
+    closeDB(db)
 # ########################################################################### #
-
 
 # --------------------------------------------------------------------------- #
 def connectDB(path):
