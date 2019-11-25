@@ -14,6 +14,17 @@ def archive(args):
     :param args: The command line arguments given by the user
     :type args: list
     '''
+
+    try:
+        if args[1] == "-c":
+            check = "-c"
+            args.pop(1)
+        else:
+            check = ""
+    except IndexError:
+        print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
+        return
+
     if len(args) != 4:
         print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
         return
@@ -26,7 +37,8 @@ def archive(args):
     dlfilePath = os.path.join(path, "downloaded")
     dbPath = os.path.join(path, "archive.db")
     writeDownloadedFile(dbPath, dlfilePath)
-    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", "(bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best", "--recode-video", "mp4", "--add-metadata", "-o", "ID%(id)s&%(title)s.%(ext)s", "--embed-thumbnail", "--write-sub", "--sub-lang", args[2], "--write-description", "--exec", "ytapost {} " + args[2], args[3]]
+    dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
+    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", "(bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best", "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args[2], "--write-description", "--exec", "ytapost {} {{}} {} ".format(check, args[2]), args[3]]
 
     logFile = os.path.join(path, "log")
     with open(logFile, 'w+') as f:

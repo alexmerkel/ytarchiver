@@ -6,6 +6,7 @@ import sys
 import subprocess
 import shutil
 import sqlite3
+import hashlib
 
 # --------------------------------------------------------------------------- #
 def postprocess(args):
@@ -17,6 +18,11 @@ def postprocess(args):
     #Get files
     files = []
     try:
+        if args[1] == "-c":
+            check = True
+            args.pop(1)
+        else:
+            check = False
         path = os.path.normpath(os.path.abspath(args[1]))
         if os.path.isfile(path):
             dirPath = os.path.dirname(path)
@@ -57,13 +63,13 @@ def postprocess(args):
         return
 
     for f in files:
-        processFile(f, subLang, db)
+        processFile(f, subLang, db, check)
 
     closeDB(dbCon)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def processFile(name, subLang, db):
+def processFile(name, subLang, db, check):
     '''Process a file
 
     :param name: The video file name
@@ -72,6 +78,8 @@ def processFile(name, subLang, db):
     :type subLang: string
     :param db: Connection to the metadata database
     :type db: sqlite3.Cursor
+    :param check: Whether to perform an integrity check and calc the checksum
+    :type check: boolean
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
@@ -164,11 +172,21 @@ def processFile(name, subLang, db):
     cmd = ["exiftool", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
-    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs)
+    #If check is true, check file and calculate checksum
+    checksum = None
+    if check:
+        cmd = ["ffmpeg", "-v", "error", "-i", newName, "-f", "null", "-"]
+        out, _ = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()
+        checksum = hash(newName)
+        if out:
+            print("ERROR: File corrupt! SHA256: " + checksum)
+        else:
+            print("File check passed, SHA256: " + checksum)
+    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, os.path.basename(newName), checksum)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs):
+def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum):
     '''Write info to database
 
     :param db: Connection to the database
@@ -187,11 +205,15 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs):
     :type youtubeID: string
     :param subs: The subtitles
     :type subs: string
+    :param filename: The name of the video file
+    :type filename: string
+    :param checksum: A sha256 checksum of the file
+    :type checksum: string
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
-    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles) VALUES(?,?,?,?,?,?,?)"
-    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs))
+    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum) VALUES(?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -214,7 +236,9 @@ def createOrConnectDB(path):
                        timestamp INTEGER,
                        description TEXT,
                        youtubeID TEXT NOT NULL,
-                       subtitles TEXT
+                       subtitles TEXT,
+                       filename TEXT NOT NULL,
+                       checksum TEXT
                    ); """
 
     #Create database
@@ -240,6 +264,15 @@ def closeDB(dbCon):
     if dbCon:
         dbCon.commit()
         dbCon.close()
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def hash(path):
+    sha256 = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
