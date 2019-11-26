@@ -61,8 +61,8 @@ def check(args):
             out, _ = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()
             if out:
                 print("ERROR: File \"{}\" corrupt!".format(f["name"]))
-                continue
-            print("File \"{}\" check passed".format(f["name"]))
+            else:
+                print("File \"{}\" check passed".format(f["name"]))
         #Calculate checksums
         sha256 = hashlib.sha256()
         with open(filepath, "rb") as vf:

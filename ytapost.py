@@ -172,12 +172,11 @@ def processFile(name, subLang, db, check):
     cmd = ["exiftool", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
-    #If check is true, check file and calculate checksum
-    checksum = None
+    checksum = hash(newName)
+    #Check file integrity
     if check:
         cmd = ["ffmpeg", "-v", "error", "-i", newName, "-f", "null", "-"]
         out, _ = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT).communicate()
-        checksum = hash(newName)
         if out:
             print("ERROR: File corrupt! SHA256: " + checksum)
         else:
@@ -238,7 +237,7 @@ def createOrConnectDB(path):
                        youtubeID TEXT NOT NULL,
                        subtitles TEXT,
                        filename TEXT NOT NULL,
-                       checksum TEXT
+                       checksum TEXT NOT NULL
                    ); """
 
     #Create database
