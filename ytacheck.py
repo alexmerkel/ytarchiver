@@ -29,26 +29,14 @@ def check(args):
         print("Usage: ytacheck [-c] DIR")
         return
 
-    #Read all files in dir
+    #Read filenames and checksums from database
     files = []
-    cmd = ["exiftool", "-api", "largefilesupport=1", "-Comment", path]
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    for line in p.stdout.readlines():
-        line = line.decode("utf-8").strip()
-        if line.startswith("Comment"):
-            vid = line.split(':', 2)[2].strip()
-            files[-1]["youtubeID"] = vid
-        if line.startswith("=="):
-            files.append({"name" : os.path.basename(line.split(' ', 1)[1].strip())})
-    if not files:
-        print("No videos found in directory")
-        return
-    #Read checksums from database
     try:
         dbPath = os.path.join(path, "archive.db")
         db = connectDB(dbPath)
-        for f in files:
-            f["checksum"] = db.execute("SELECT checksum FROM videos WHERE youtubeID = ?;", (f["youtubeID"],)).fetchone()[0]
+        r = db.execute("SELECT youtubeID,filename,checksum FROM videos;")
+        for f in r.fetchall():
+            files.append({"checksum" : f[2], "name" : f[1], "youtubeID" : f[0]})
     except sqlite3.Error as e:
         print(e)
         return
@@ -71,12 +59,13 @@ def check(args):
         checksum = sha256.hexdigest()
 
         if not f["checksum"]:
-            f["checksum"] = checksum
-
-        if f["checksum"] != checksum:
-            print("ERROR: Checksum mismatch for file \"{}\" (New checksum: {})".format(f["name"], checksum))
+            db.execute("UPDATE videos SET checksum = ? WHERE youtubeID = ?", (checksum, f["youtubeID"]))
+            print("WARNING: File \"{}\" no checksum in database, adding {}".format(f["name"], checksum))
         else:
-            db.execute("UPDATE videos SET filename = ?, checksum = ? WHERE youtubeID = ?", (f["name"], checksum, f["youtubeID"]))
+            if f["checksum"] == checksum:
+                print("File \"{}\" checksums match".format(f["name"]))
+            else:
+                print("ERROR: Checksum mismatch for file \"{}\" (New checksum: {})".format(f["name"], checksum))
     #Close database
     closeDB(db)
 # ########################################################################### #
