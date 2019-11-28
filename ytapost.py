@@ -93,9 +93,9 @@ def processFile(name, subLang, db, check):
         lang = subLang
     #If subtitles, read and embed them
     subs = None
+    tmpFile = videoFileComp[0] + "_tmp" + videoFileComp[1]
     if subLang:
         subFile = videoFileComp[0] + ".{}.vtt".format(subLang)
-        tmpFile = videoFileComp[0] + "_tmp" + videoFileComp[1]
         try:
             #Read subtitle file
             with open(subFile, 'r') as f:
@@ -106,7 +106,7 @@ def processFile(name, subLang, db, check):
             shutil.move(tmpFile, name)
             os.remove(subFile)
         except IOError:
-            pass
+            subs = None
     #If no subtitles added, change audio language at least
     if not subs:
         cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "panic", "-i", name, "-map", "0:v", "-map", "0:a", "-c", "copy", "-metadata:s:a:0", "language=" + lang, tmpFile]
@@ -123,16 +123,16 @@ def processFile(name, subLang, db, check):
     except IOError:
         pass
     #Read artist, title
-    cmd = ["exiftool", "-Artist", name]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-Artist", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     artist = process.stdout.read().decode("UTF-8").split(':', 1)[1].strip()
-    cmd = ["exiftool", "-Title", name]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-Title", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     title = process.stdout.read().decode("UTF-8").split(':', 1)[1].strip()
     #Read image width
-    cmd = ["exiftool", "-ImageWidth", name]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-ImageWidth", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     width = int(process.stdout.read().decode("UTF-8").split(':', 1)[1].strip())
@@ -145,7 +145,7 @@ def processFile(name, subLang, db, check):
     else:
         hd = 3
     #Read date
-    cmd = ["exiftool", "-ContentCreateDate", name]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-ContentCreateDate", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     r = process.stdout.read().decode("UTF-8").split(':', 1)[1].strip()
@@ -166,10 +166,10 @@ def processFile(name, subLang, db, check):
     newName = os.path.join(os.path.dirname(name), date + ' ' + oldName)
     os.rename(name, newName)
     #Fix metadata
-    cmd = ["exiftool", "-overwrite_original", "-ContentCreateDate='{}'".format(dateTime), "-Comment={}".format('YoutubeID: ' + videoID), "-Encoder=", newName]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-overwrite_original", "-ContentCreateDate='{}'".format(dateTime), "-Comment={}".format('YoutubeID: ' + videoID), "-Encoder=", newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
-    cmd = ["exiftool", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     checksum = hash(newName)

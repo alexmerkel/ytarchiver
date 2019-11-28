@@ -31,7 +31,7 @@ def check(args):
 
     #Read all files in dir
     files = []
-    cmd = ["exiftool", "-Comment", path]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-Comment", path]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     for line in p.stdout.readlines():
         line = line.decode("utf-8").strip()

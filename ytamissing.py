@@ -24,7 +24,7 @@ def findMissing(args):
     #Read IDs from file
     fFiles = []
     fIDs = []
-    cmd = ["exiftool", "-Comment", path]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-Comment", path]
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     for line in p.stdout.readlines():
         line = line.decode("utf-8").strip()
