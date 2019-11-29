@@ -15,7 +15,8 @@ where `DIR` is the directory in which to store the downloaded files, `SUBLANG` i
 YouTube to identify a video or playlist (e.g. `dQw4w9WgXcQ`). The optional `-c` flag instructs the script to verify the integrity of the downloaded
 video file using ffmpeg. In addition to the metadata stored inside the video file, a database called *archive.db* is created, where the metadata as
 well as a checksum are stored. After youtube-dl completed its process, the script `ytapost.py` will be called automatically to perform the
-post-processing steps.
+post-processing steps. The `YOUTUBEID` can be omitted of the specified directory contains a file called *playlist* which contains the ID of the playlist
+to archive.
 
 ytamissing.py
 -------------

@@ -16,23 +16,33 @@ def archive(args):
     '''
 
     try:
+        #Check files?
         if args[1] == "-c":
             check = "-c"
             args.pop(1)
         else:
             check = ""
+        #Get directory path
+        path = os.path.normpath(os.path.abspath(args[1]))
+        if not os.path.isdir(path):
+            print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
+            return
     except IndexError:
         print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
         return
 
     if len(args) != 4:
-        print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
-        return
+        if len(args) == 3:
+            try:
+                with open(os.path.join(path, "playlist"), 'r') as f:
+                    args.append(f.readline().strip())
+            except (IndexError, OSError):
+                print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
+                return
+        else:
+            print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
+            return
 
-    path = os.path.normpath(os.path.abspath(args[1]))
-    if not os.path.isdir(path):
-        print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
-        return
 
     dlfilePath = os.path.join(path, "downloaded")
     dbPath = os.path.join(path, "archive.db")
