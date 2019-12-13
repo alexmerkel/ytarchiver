@@ -5,6 +5,7 @@ import os
 import sys
 import subprocess
 import sqlite3
+import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
 def findMissing(args):
@@ -41,7 +42,7 @@ def findMissing(args):
     dbPath = os.path.join(path, "archive.db")
     aFiles = []
     try:
-        db = connectDB(dbPath)
+        db = yta.connectDB(dbPath)
         r = db.execute("SELECT youtubeID,title FROM videos;")
         for item in r.fetchall():
             #Write ids to list
@@ -67,39 +68,7 @@ def findMissing(args):
     if not found:
         print("No discrepancies between files and database")
     #Close db
-    closeDB(db)
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def connectDB(path):
-    '''Connect to a database
-
-    :param path: The path of the database
-    :type path: string
-
-    :raises: :class:``sqlite3.Error: Unable to connect to database
-
-    :returns: Connection to the database
-    :rtype: sqlite3.Connection
-    '''
-    #Connect database
-    dbCon = sqlite3.connect(path)
-    #Return database connection
-    return dbCon
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def closeDB(dbCon):
-    '''Close the connection to a database
-
-    :param dbCon: Connection to the database
-    :type dbCon: sqlite3.Connection
-
-    :raises: :class:``sqlite3.Error: Unable to close database
-    '''
-    if dbCon:
-        dbCon.commit()
-        dbCon.close()
+    yta.closeDB(db)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -109,4 +78,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #
-

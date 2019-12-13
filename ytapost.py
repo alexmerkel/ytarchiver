@@ -6,7 +6,7 @@ import sys
 import subprocess
 import shutil
 import sqlite3
-import hashlib
+import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
 def postprocess(args):
@@ -65,7 +65,7 @@ def postprocess(args):
     for f in files:
         processFile(f, subLang, db, check)
 
-    closeDB(dbCon)
+    yta.closeDB(dbCon)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -172,7 +172,7 @@ def processFile(name, subLang, db, check):
     cmd = ["exiftool", "-api", "largefilesupport=1", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
-    checksum = hash(newName)
+    checksum = yta.calcSHA(newName)
     #Check file integrity
     if check:
         cmd = ["ffmpeg", "-v", "error", "-i", newName, "-f", "null", "-"]
@@ -241,7 +241,7 @@ def createOrConnectDB(path):
                    ); """
 
     #Create database
-    dbCon = sqlite3.connect(path)
+    dbCon = yta.connectDB(path)
     db = dbCon.cursor()
     #Set encoding
     db.execute("pragma encoding=UTF8")
@@ -249,29 +249,6 @@ def createOrConnectDB(path):
     db.execute(tableCmd)
     #Return database connection
     return dbCon
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def closeDB(dbCon):
-    '''Close the connection to a database
-
-    :param dbCon: Connection to the database
-    :type dbCon: sqlite3.Connection
-
-    :raises: :class:``sqlite3.Error: Unable to close database
-    '''
-    if dbCon:
-        dbCon.commit()
-        dbCon.close()
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def hash(path):
-    sha256 = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

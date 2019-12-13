@@ -5,7 +5,7 @@ import os
 import sys
 import subprocess
 import sqlite3
-import hashlib
+import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
 def check(args):
@@ -33,7 +33,7 @@ def check(args):
     files = []
     try:
         dbPath = os.path.join(path, "archive.db")
-        db = connectDB(dbPath)
+        db = yta.connectDB(dbPath)
         r = db.execute("SELECT youtubeID,filename,checksum FROM videos;")
         for f in r.fetchall():
             files.append({"checksum" : f[2], "name" : f[1], "youtubeID" : f[0]})
@@ -52,11 +52,7 @@ def check(args):
             else:
                 print("File \"{}\" check passed".format(f["name"]))
         #Calculate checksums
-        sha256 = hashlib.sha256()
-        with open(filepath, "rb") as vf:
-            for chunk in iter(lambda: vf.read(4096), b""):
-                sha256.update(chunk)
-        checksum = sha256.hexdigest()
+        checksum = yta.calcSHA(filepath)
 
         if not f["checksum"]:
             db.execute("UPDATE videos SET checksum = ? WHERE youtubeID = ?", (checksum, f["youtubeID"]))
@@ -67,39 +63,7 @@ def check(args):
             else:
                 print("ERROR: Checksum mismatch for file \"{}\" (New checksum: {})".format(f["name"], checksum))
     #Close database
-    closeDB(db)
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def connectDB(path):
-    '''Connect to a database
-
-    :param path: The path of the database
-    :type path: string
-
-    :raises: :class:``sqlite3.Error: Unable to connect to database
-
-    :returns: Connection to the database
-    :rtype: sqlite3.Connection
-    '''
-    #Connect database
-    dbCon = sqlite3.connect(path)
-    #Return database connection
-    return dbCon
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def closeDB(dbCon):
-    '''Close the connection to a database
-
-    :param dbCon: Connection to the database
-    :type dbCon: sqlite3.Connection
-
-    :raises: :class:``sqlite3.Error: Unable to close database
-    '''
-    if dbCon:
-        dbCon.commit()
-        dbCon.close()
+    yta.closeDB(db)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
