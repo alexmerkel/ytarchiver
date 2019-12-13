@@ -32,7 +32,16 @@ def archive(args):
         return
 
     if len(args) != 4:
-        if len(args) == 3:
+        if len(args) == 2:
+            try:
+                with open(os.path.join(path, "language"), 'r') as f:
+                    args.append(f.readline().strip())
+                with open(os.path.join(path, "playlist"), 'r') as f:
+                    args.append(f.readline().strip())
+            except (IndexError, OSError):
+                print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
+                return
+        elif len(args) == 3:
             try:
                 with open(os.path.join(path, "playlist"), 'r') as f:
                     args.append(f.readline().strip())
