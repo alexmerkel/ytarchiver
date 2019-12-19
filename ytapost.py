@@ -230,7 +230,7 @@ def createOrConnectDB(path):
     tableCmd = """ CREATE TABLE IF NOT EXISTS videos (
                        id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
                        title TEXT NOT NULL,
-                       creator TEST NOT NULL,
+                       creator TEXT NOT NULL,
                        date TEXT,
                        timestamp INTEGER,
                        description TEXT,
