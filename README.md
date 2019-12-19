@@ -17,7 +17,9 @@ video file using ffmpeg. In addition to the metadata stored inside the video fil
 well as a checksum are stored. After youtube-dl completed its process, the script `ytapost.py` will be called automatically to perform the
 post-processing steps. The `YOUTUBEID` can be omitted if the specified directory contains a file called *playlist* which contains the ID of the playlist
 to archive. The `SUBLANG` can be omitted as well if, in addition to the *playlist* file, the specified directory contains a file called *language* which contains
-the subtitle language code (e.g. `en` for English, `de` for German, etc).
+the subtitle language code (e.g. `en` for English, `de` for German, etc). Alternatively, the playlist and language info can also be stored inside the archive
+database along with additional information about the channel. When creating a new archive, a prompt for the channel info appears. They can also be added to
+an existing archive database using the `ytainfo.py` script.
 
 ytamissing.py
 -------------

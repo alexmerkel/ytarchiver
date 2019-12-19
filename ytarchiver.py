@@ -6,6 +6,8 @@ import sys
 import subprocess
 import shutil
 import sqlite3
+import ytacommon as yta
+import ytainfo
 
 # --------------------------------------------------------------------------- #
 def archive(args):
@@ -31,16 +33,34 @@ def archive(args):
         print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
         return
 
+    dbPath = os.path.join(path, "archive.db")
+    if not os.path.isfile(dbPath):
+        #No database found, ask to create one
+        while True:
+            q = input("New archive. Populate with channel info? [Y|n] ")
+            if not q:
+                q = 'y'
+            a = q[0].lower()
+            if a in ['y', 'n']:
+                break
+        if a == 'y':
+            ytainfo.add(dbPath)
+
     if len(args) != 4:
         if len(args) == 2:
+            #Try reading playlist and language from database
             try:
-                with open(os.path.join(path, "language"), 'r') as f:
-                    args.append(f.readline().strip())
-                with open(os.path.join(path, "playlist"), 'r') as f:
-                    args.append(f.readline().strip())
-            except (IndexError, OSError):
-                print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
-                return
+                args += readInfoFromDB(dbPath)
+            except sqlite3.Error:
+                #Try reading playlist and language from files
+                try:
+                    with open(os.path.join(path, "language"), 'r') as f:
+                        args.append(f.readline().strip())
+                    with open(os.path.join(path, "playlist"), 'r') as f:
+                        args.append(f.readline().strip())
+                except (IndexError, OSError):
+                    print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
+                    return
         elif len(args) == 3:
             try:
                 with open(os.path.join(path, "playlist"), 'r') as f:
@@ -51,7 +71,8 @@ def archive(args):
         else:
             print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
             return
-
+    print(args)
+    return
 
     dlfilePath = os.path.join(path, "downloaded")
     dbPath = os.path.join(path, "archive.db")
@@ -92,14 +113,34 @@ def writeDownloadedFile(dbPath, filePath):
     try:
         with open(filePath, 'w+') as f:
             #Connect to database
-            db = sqlite3.connect(dbPath)
+            db = yta.connectDB(dbPath)
             #Read IDs of all videos already in archive
             r = db.execute("SELECT youtubeID FROM videos;")
             for item in r.fetchall():
                 #Write IDs to file
                 f.write("youtube {}\n".format(item[0]))
+            yta.closeDB(db)
     except sqlite3.Error:
         return
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def readInfoFromDB(dbPath):
+    '''Read playlist and language from database
+
+    :param dbPath: Path of the archive database
+    :type dbPath: string
+
+    :raises: :class:``sqlite3.Error: Unable to read from database
+
+    :returns: List with playlist at index 0 and language code at index 1
+    :rtype: list of string
+    '''
+    db = yta.connectDB(dbPath)
+    r = db.execute("SELECT playlist,language FROM channel ORDER BY id DESC LIMIT 1;")
+    item = r.fetchone()
+    yta.closeDB(db)
+    return [item[0], item[1]]
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
