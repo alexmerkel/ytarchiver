@@ -6,6 +6,7 @@ import sys
 import subprocess
 import shutil
 import sqlite3
+import requests
 import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
@@ -181,11 +182,18 @@ def processFile(name, subLang, db, check):
             print("ERROR: File corrupt! SHA256: " + checksum)
         else:
             print("File check passed, SHA256: " + checksum)
-    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, os.path.basename(newName), checksum)
+    #Download thumbnail
+    url = "https://i.ytimg.com/vi/{}/maxresdefault.jpg".format(videoID)
+    try:
+        [thumbData, thumbFormat] = yta.loadImage(url)
+    except requests.exceptions.HTTPError:
+        thumbData = None
+        thumbFormat = None
+    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, os.path.basename(newName), checksum, thumbData, thumbFormat)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum):
+def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat):
     '''Write info to database
 
     :param db: Connection to the database
@@ -208,11 +216,15 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
     :type filename: string
     :param checksum: A sha256 checksum of the file
     :type checksum: string
+    :param thumbData: Raw thumbnail image data
+    :type filename: bytes
+    :param thumbFormat: Thumbnail MIME type
+    :type checksum: string
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
-    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum) VALUES(?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum))
+    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat) VALUES(?,?,?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -234,10 +246,12 @@ def createOrConnectDB(path):
                        date TEXT,
                        timestamp INTEGER,
                        description TEXT,
-                       youtubeID TEXT NOT NULL,
+                       youtubeID TEXT NOT NULL UNIQUE,
                        subtitles TEXT,
                        filename TEXT NOT NULL,
-                       checksum TEXT NOT NULL
+                       checksum TEXT NOT NULL,
+                       thumb BLOB,
+                       thumbformat TEXT
                    ); """
 
     #Create database

@@ -3,6 +3,7 @@
 
 import sqlite3
 import hashlib
+import requests
 
 # --------------------------------------------------------------------------- #
 def connectDB(path):
@@ -65,4 +66,22 @@ class color:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
     END = '\033[0m'
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def loadImage(url):
+    '''Download image at url
+
+    :param url: The image url
+    :type path: string
+
+    :raises: :class:``requests.exceptions.HTTPError: Unable to load image from URL
+
+    :returns: List with the raw image data at index 0 and the mime type at index 1
+    :rtype: list
+    '''
+    r = requests.get(url, stream=True)
+    r.raw.decode_content = True
+    r.raise_for_status()
+    return[r.raw.data, r.headers['content-type']]
 # ########################################################################### #

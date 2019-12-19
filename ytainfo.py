@@ -109,7 +109,7 @@ def add(dbPath):
             profileformat = None
             break
         try:
-            [profile, profileformat] = loadImage(q.strip())
+            [profile, profileformat] = yta.loadImage(q.strip())
             break
         except requests.exceptions.HTTPError:
             print("ERROR: Invalid URL")
@@ -122,7 +122,7 @@ def add(dbPath):
             bannerformat = None
             break
         try:
-            [banner, bannerformat] = loadImage(q.strip())
+            [banner, bannerformat] = yta.loadImage(q.strip())
             break
         except requests.exceptions.HTTPError:
             print("ERROR: Invalid URL")
@@ -133,24 +133,6 @@ def add(dbPath):
     print(yta.color.BOLD + "FINISHED ADDING CHANNEL INFO" + yta.color.END)
 
     yta.closeDB(db)
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def loadImage(url):
-    '''Create database with the required tables
-
-    :param url: The image url
-    :type path: string
-
-    :raises: :class:``requests.exceptions.HTTPError: Unable to load image from URL
-
-    :returns: List with the raw image data at index 0 and the mime type at index 1
-    :rtype: list
-    '''
-    r = requests.get(url, stream=True)
-    r.raw.decode_content = True
-    r.raise_for_status()
-    return[r.raw.data, r.headers['content-type']]
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
