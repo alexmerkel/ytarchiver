@@ -71,8 +71,6 @@ def archive(args):
         else:
             print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
             return
-    print(args)
-    return
 
     dlfilePath = os.path.join(path, "downloaded")
     dbPath = os.path.join(path, "archive.db")

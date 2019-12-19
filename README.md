@@ -52,6 +52,7 @@ Requirements
 *   [youtube-dl](https://github.com/ytdl-org/youtube-dl)
 *   [ffmpeg](https://www.ffmpeg.org/)
 *   [exiftool](https://www.sno.phy.queensu.ca/~phil/exiftool/)
+*   [requests](https://pypi.org/project/requests/)
 
 License
 -------
