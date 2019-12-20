@@ -10,6 +10,11 @@ import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
 def addThumbnails(args):
+    '''Add thumbnail to archive database
+
+    :param args: The command line arguments given by the user
+    :type args: list
+    '''
     #Get database path
     try:
         path = os.path.normpath(os.path.abspath(args[1]))
@@ -43,7 +48,7 @@ def addThumbnails(args):
 
 # --------------------------------------------------------------------------- #
 def modifyDatabase(db):
-    '''Add thumbnail and thumbnailformat columns to videos table of they not
+    '''Add thumbnail and thumbnailformat columns to videos table of they
     don't exist already
 
     :param db: Connection to the metadata database
@@ -54,26 +59,6 @@ def modifyDatabase(db):
         db.execute('ALTER TABLE videos ADD COLUMN thumbformat TEXT;')
     except sqlite3.Error:
         pass
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def writeBatchFile(db, filePath):
-    '''Write file containing Youtube IDs of all videos already archived
-
-    :param db: Connection to the metadata database
-    :type db: sqlite3.Cursor
-    :param filePath: Path where the file containing all existing IDs should be written to
-    :type filePath: string
-    '''
-    try:
-        with open(filePath, 'w+') as f:
-            #Read IDs of all videos already in archive
-            r = db.execute("SELECT youtubeID FROM videos;")
-            for item in r.fetchall():
-                #Write IDs to file
-                f.write(item[0] + '\n')
-    except sqlite3.Error:
-        return
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
