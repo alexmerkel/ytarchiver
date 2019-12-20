@@ -6,8 +6,8 @@ import sys
 import subprocess
 import shutil
 import sqlite3
-import requests
 import ytacommon as yta
+import ytameta
 
 # --------------------------------------------------------------------------- #
 def postprocess(args):
@@ -158,11 +158,6 @@ def processFile(name, subLang, db, check):
     if oldName.startswith("ID") and '&' in oldName:
         [videoID, oldName] = oldName.split('&', 1)
         videoID = videoID[2:]
-    #Remove timestamp from filename
-    timestamp = None
-    if oldName.startswith("TS") and '&' in oldName:
-        [timestamp, oldName] = oldName.split('&', 1)
-        timestamp = int(timestamp)
     #Add date to file name
     newName = os.path.join(os.path.dirname(name), date + ' ' + oldName)
     os.rename(name, newName)
@@ -186,14 +181,26 @@ def processFile(name, subLang, db, check):
     url = "https://i.ytimg.com/vi/{}/maxresdefault.jpg".format(videoID)
     try:
         [thumbData, thumbFormat] = yta.loadImage(url)
-    except requests.exceptions.HTTPError:
+    except OSError:
         thumbData = None
         thumbFormat = None
-    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, os.path.basename(newName), checksum, thumbData, thumbFormat)
+    #Download additional metadata
+    timestamp = None
+    duration = None
+    tags = None
+    try:
+        [timestamp, duration, tags] = ytameta.getMetadata(videoID)
+        db.execute("UPDATE videos SET timestamp = ?, duration = ?, tags = ? WHERE youtubeID = ?", (timestamp, duration, "\n".join(tags), videoID))
+    except FileNotFoundError:
+        print("WARNING: No Youtube data API key available, unable to load additional metadata")
+    except OSError:
+        print("ERROR: Unable to load metadata for {}".format(videoID))
+    #Save to database
+    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, os.path.basename(newName), checksum, thumbData, thumbFormat, duration, tags)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat):
+def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags):
     '''Write info to database
 
     :param db: Connection to the database
@@ -217,14 +224,18 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
     :param checksum: A sha256 checksum of the file
     :type checksum: string
     :param thumbData: Raw thumbnail image data
-    :type filename: bytes
+    :type thumbData: bytes
     :param thumbFormat: Thumbnail MIME type
-    :type checksum: string
+    :type thumbFormat: string
+    :param duration: The duration of the video in seconds
+    :type duration: integer
+    :param tags: List of tags
+    :type tags: list of strings
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
-    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat) VALUES(?,?,?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat))
+    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, "\n".join(tags)))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -251,7 +262,9 @@ def createOrConnectDB(path):
                        filename TEXT NOT NULL,
                        checksum TEXT NOT NULL,
                        thumb BLOB,
-                       thumbformat TEXT
+                       thumbformat TEXT,
+                       duration INTEGER,
+                       tags TEXT
                    ); """
 
     #Create database
