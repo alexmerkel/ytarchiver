@@ -6,6 +6,7 @@ import sys
 import subprocess
 import shutil
 import sqlite3
+from datetime import datetime, timezone
 import ytacommon as yta
 import ytameta
 
@@ -158,6 +159,21 @@ def processFile(name, subLang, db, check):
     if oldName.startswith("ID") and '&' in oldName:
         [videoID, oldName] = oldName.split('&', 1)
         videoID = videoID[2:]
+    #Download additional metadata
+    timestamp = None
+    duration = None
+    tags = None
+    try:
+        [timestamp, duration, tags] = ytameta.getMetadata(videoID)
+    except FileNotFoundError:
+        print("WARNING: No Youtube data API key available, unable to load additional metadata")
+    except OSError:
+        print("ERROR: Unable to load metadata for {}".format(videoID))
+    if timestamp:
+        dateTime = datetime.strftime(datetime.fromtimestamp(timestamp, tz=timezone.utc), "%Y:%m:%d %H:%M:%S+0")
+    else:
+        dateTime = r[0:4] + ':' + r[4:6] + ':' + r[6:8] + " 00:00:00+0"
+        timestamp = datetime.timestamp(datetime.strptime(dateTime + "000", "%Y:%m:%d %H:%M:%S%z"))
     #Add date to file name
     newName = os.path.join(os.path.dirname(name), date + ' ' + oldName)
     os.rename(name, newName)
@@ -182,19 +198,15 @@ def processFile(name, subLang, db, check):
     try:
         [thumbData, thumbFormat] = yta.loadImage(url)
     except OSError:
-        thumbData = None
-        thumbFormat = None
-    #Download additional metadata
-    timestamp = None
-    duration = None
-    tags = None
-    try:
-        [timestamp, duration, tags] = ytameta.getMetadata(videoID)
-        db.execute("UPDATE videos SET timestamp = ?, duration = ?, tags = ? WHERE youtubeID = ?", (timestamp, duration, "\n".join(tags), videoID))
-    except FileNotFoundError:
-        print("WARNING: No Youtube data API key available, unable to load additional metadata")
-    except OSError:
-        print("ERROR: Unable to load metadata for {}".format(videoID))
+        url = "https://i.ytimg.com/vi/{}/hqdefault.jpg".format(videoID)
+        try:
+            print("WARNING: Unable to download highres thumbnail for {}, getting lower res".format(videoID))
+            [thumbData, thumbFormat] = yta.loadImage(url)
+        except OSError:
+            print("ERROR: Unable to download thumbnail for {}".format(videoID))
+            thumbData = None
+            thumbFormat = None
+
     #Save to database
     saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, os.path.basename(newName), checksum, thumbData, thumbFormat, duration, tags)
 # ########################################################################### #
@@ -229,13 +241,13 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
     :type thumbFormat: string
     :param duration: The duration of the video in seconds
     :type duration: integer
-    :param tags: List of tags
-    :type tags: list of strings
+    :param tags: String with one tag per line
+    :type tags: strings
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
     insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, "\n".join(tags)))
+    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -254,8 +266,8 @@ def createOrConnectDB(path):
                        id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
                        title TEXT NOT NULL,
                        creator TEXT NOT NULL,
-                       date TEXT,
-                       timestamp INTEGER,
+                       date TEXT NOT NULL,
+                       timestamp INTEGER NOT NULL,
                        description TEXT,
                        youtubeID TEXT NOT NULL UNIQUE,
                        subtitles TEXT,

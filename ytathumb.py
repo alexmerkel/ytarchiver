@@ -40,8 +40,14 @@ def addThumbnails(args):
             [thumbData, thumbFormat] = yta.loadImage(url)
             db.execute("UPDATE videos SET thumb = ?, thumbformat = ? WHERE youtubeID = ?", (thumbData, thumbFormat, youtubeID))
         except requests.exceptions.HTTPError:
-            print("ERROR: Unable to download image for {} ({})".format(youtubeID, url))
-            continue
+            url = "https://i.ytimg.com/vi/{}/hqdefault.jpg".format(youtubeID)
+            try:
+                print("WARNING: Unable to download highres thumbnail for {}, getting lower res".format(youtubeID))
+                [thumbData, thumbFormat] = yta.loadImage(url)
+                db.execute("UPDATE videos SET thumb = ?, thumbformat = ? WHERE youtubeID = ?", (thumbData, thumbFormat, youtubeID))
+            except requests.exceptions.HTTPError:
+                print("ERROR: Unable to download image for {} ({})".format(youtubeID, url))
+                continue
     #Close database
     yta.closeDB(dbCon)
 # ########################################################################### #
