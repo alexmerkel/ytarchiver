@@ -135,7 +135,7 @@ def readInfoFromDB(dbPath):
     :rtype: list of string
     '''
     db = yta.connectDB(dbPath)
-    r = db.execute("SELECT playlist,language FROM channel ORDER BY id DESC LIMIT 1;")
+    r = db.execute("SELECT language,playlist FROM channel ORDER BY id DESC LIMIT 1;")
     item = r.fetchone()
     yta.closeDB(db)
     return [item[0], item[1]]
