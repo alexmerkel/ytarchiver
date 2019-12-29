@@ -5,6 +5,7 @@ import os
 import sys
 import subprocess
 import sqlite3
+import requests
 import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
@@ -29,9 +30,9 @@ def fix(args):
     try:
         dbPath = os.path.join(path, "archive.db")
         db = yta.connectDB(dbPath)
-        r = db.execute("SELECT creator,filename FROM videos;")
+        r = db.execute("SELECT creator,filename,youtubeID FROM videos;")
         for f in r.fetchall():
-            files.append({"artist" : f[0], "name" : f[1]})
+            files.append({"artist" : f[0], "name" : f[1], "id" : f[2]})
     except sqlite3.Error as e:
         print(e)
         return
@@ -42,14 +43,23 @@ def fix(args):
         if f["artist"] != artist:
             found = True
             filepath = os.path.join(path, f["name"])
-            #Update artist
-            cmd = ["exiftool", "-api", "largefilesupport=1", "-overwrite_original", "-Artist={}".format(artist), filepath]
+            #Get title
+            try:
+                r = requests.get("https://www.youtube.com/oembed?url=http://www.youtube.com/watch?v=" + f["id"])
+                r.raise_for_status()
+                d = r.json()
+                title = d["title"]
+            except requests.exceptions.HTTPError:
+                print("ERROR: Unable to fix \"{}\"".format(f["name"]))
+                continue
+            #Update artist and title
+            cmd = ["exiftool", "-api", "largefilesupport=1", "-overwrite_original", "-Artist={}".format(artist), "-Title={}".format(title), filepath]
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             process.wait()
             #Calculate checksums
             checksum = yta.calcSHA(filepath)
             #Update database
-            db.execute("UPDATE videos SET checksum = ?, creator = ? WHERE filename = ?", (checksum, artist, f["name"]))
+            db.execute("UPDATE videos SET checksum = ?, creator = ? , title = ? WHERE filename = ?", (checksum, artist, title, f["name"]))
             print("File \"{}\" fixed".format(f["name"]))
     if not found:
         print("No files to fix")
