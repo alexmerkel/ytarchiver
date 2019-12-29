@@ -131,7 +131,7 @@ def readInfoFromDB(dbPath):
 
     :raises: :class:``sqlite3.Error: Unable to read from database
 
-    :returns: List with playlist at index 0 and language code at index 1
+    :returns: List with language code at index 0 and playlist at index 1
     :rtype: list of string
     '''
     db = yta.connectDB(dbPath)
