@@ -18,8 +18,12 @@ def archive(args):
     '''
 
     try:
+        #All subdirs
+        if args[1] == "-a":
+            archiveAll(args)
+            return
         #Check files?
-        if args[1] == "-c":
+        elif args[1] == "-c":
             check = "-c"
             args.pop(1)
         else:
@@ -94,6 +98,34 @@ def archive(args):
         os.remove(dlfilePath)
     except OSError:
         pass
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def archiveAll(args):
+    '''Call archive script for all subdirs
+
+    :param args: The command line arguments given by the user
+    :type args: list
+    '''
+    #Remove "-a" from args
+    args.pop(1)
+    a = ["ytarchiver.py"]
+    if args[1] == "-c":
+        a.append("-c")
+        args.pop(1)
+    #Get path
+    path = os.path.normpath(os.path.abspath(args[1]))
+    #Get subdirs in path
+    subdirs = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+    subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
+    if not subdirs:
+        print("ERROR: No subdirs with archive databases at \'{}\'".format(path))
+        return
+    #Loop through all subdirs
+    for subdir in subdirs:
+        print("\nARCHIVING \'{}\'".format(subdir))
+        archive(a + [subdir])
+    print("\nDONE!")
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

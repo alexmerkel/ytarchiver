@@ -16,6 +16,10 @@ def fix(args):
     :type args: list
     '''
     try:
+        #All subdirs
+        if args[1] == "-a":
+            fixAll(args)
+            return
         path = os.path.normpath(os.path.abspath(args[1]))
         if not os.path.isdir(path):
             print("Usage: ytafix DIR ARTIST")
@@ -72,6 +76,30 @@ def fix(args):
         print("No files to fix")
     #Close database
     yta.closeDB(db)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def fixAll(args):
+    '''Call fix script for all subdirs
+
+    :param args: The command line arguments given by the user
+    :type args: list
+    '''
+    #Remove "-a" from args
+    args.pop(1)
+    #Get path
+    path = os.path.normpath(os.path.abspath(args[1]))
+    #Get subdirs in path
+    subdirs = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+    subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
+    if not subdirs:
+        print("ERROR: No subdirs with archive databases at \'{}\'".format(path))
+        return
+    #Loop through all subdirs
+    for subdir in subdirs:
+        print("\nFIXING \'{}\'".format(subdir))
+        fix(["ytafix", subdir])
+    print("\nDONE!")
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
