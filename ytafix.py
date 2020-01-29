@@ -20,16 +20,23 @@ def fix(args):
         if not os.path.isdir(path):
             print("Usage: ytafix DIR ARTIST")
             return
-        artist = args[2]
-    except (OSError, IndexError):
+        dbPath = os.path.join(path, "archive.db")
+        db = yta.connectDB(dbPath)
+        if len(args) == 3:
+            artist = args[2]
+        else:
+            r = db.execute("SELECT name FROM channel LIMIT 1;")
+            (artist, ) = r.fetchone()
+            if not artist:
+                print("Usage: ytafix DIR ARTIST")
+                return
+    except (OSError, IndexError, sqlite3.Error):
         print("Usage: ytafix DIR ARTIST")
         return
 
     #Read filenames and checksums from database
     files = []
     try:
-        dbPath = os.path.join(path, "archive.db")
-        db = yta.connectDB(dbPath)
         r = db.execute("SELECT creator,filename,youtubeID FROM videos;")
         for f in r.fetchall():
             files.append({"artist" : f[0], "name" : f[1], "id" : f[2]})
