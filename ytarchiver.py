@@ -80,7 +80,8 @@ def archive(args):
     dbPath = os.path.join(path, "archive.db")
     writeDownloadedFile(dbPath, dlfilePath)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
-    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", "(bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best", "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args[2], "--write-description", "--exec", "ytapost {} {{}} {} ".format(check, args[2]), args[3]]
+    dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args[2], "--write-description", "--exec", "ytapost {} {{}} {} ".format(check, args[2]), args[3]]
 
     logFile = os.path.join(path, "log")
     with open(logFile, 'w+') as f:
