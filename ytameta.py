@@ -81,7 +81,10 @@ def getMetadata(youtubeID):
         print("WARNING: No metadata available for " + youtubeID)
         return [None, None, None]
     #Convert update time to timestamp
-    timestamp = int(datetime.timestamp(datetime.strptime(d["items"][0]["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%S.%f%z")))
+    try:
+        timestamp = int(datetime.timestamp(datetime.strptime(d["items"][0]["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%S.%f%z")))
+    except ValueError:
+        timestamp = int(datetime.timestamp(datetime.strptime(d["items"][0]["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%S%z")))
     #Convert duration to seconds
     duration = convertDuration(d["items"][0]["contentDetails"]["duration"])
     #Extract tags
