@@ -95,6 +95,7 @@ def archive(args):
         print(line, end='')
         p.wait()
 
+    #Remove download archive file
     try:
         os.remove(dlfilePath)
     except OSError:
@@ -122,10 +123,35 @@ def archiveAll(args):
     if not subdirs:
         print("ERROR: No subdirs with archive databases at \'{}\'".format(path))
         return
+    #Print message
+    print("ARCHIVING ALL CHANNELS IN \'{}\'\n".format(path))
+    #Initiate error log
+    errorLog = ""
+    #Empty cache
+    cmd = ["youtube-dl", "--rm-cache-dir"]
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    process.wait()
     #Loop through all subdirs
     for subdir in subdirs:
-        print("\nARCHIVING \'{}\'".format(subdir))
+        name = os.path.basename(os.path.normpath(subdir))
+        print("\nARCHIVING \'{}\'".format(name))
         archive(a + [subdir])
+        #Read errors from log
+        error = ""
+        with open(os.path.join(subdir, "log"), 'r') as f:
+            lines = f.readlines()
+            for i in range(len(lines)):
+                if lines[i].startswith("ERROR"):
+                    error += "\n" + lines[i-1] + lines[i]
+        if error:
+            errorLog += '\n\n' + name + '\n' + error
+    #Print error log
+    if not errorLog:
+        errorLog = "No errors\n"
+    logFile = os.path.join(path, "log")
+    with open(logFile, 'w+') as f:
+        f.writelines(errorLog)
+
     print("\nDONE!")
 # ########################################################################### #
 
