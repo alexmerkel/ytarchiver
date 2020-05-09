@@ -125,16 +125,16 @@ def processFile(name, subLang, db, check):
     except IOError:
         pass
     #Read artist, title
-    cmd = ["exiftool", "-api", "largefilesupport=1", "-Artist", name]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-Artist", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     artist = process.stdout.read().decode("UTF-8").split(':', 1)[1].strip()
-    cmd = ["exiftool", "-api", "largefilesupport=1", "-Title", name]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-Title", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     title = process.stdout.read().decode("UTF-8").split(':', 1)[1].strip()
     #Read image width
-    cmd = ["exiftool", "-api", "largefilesupport=1", "-ImageWidth", name]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-ImageWidth", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     width = int(process.stdout.read().decode("UTF-8").split(':', 1)[1].strip())
@@ -147,7 +147,7 @@ def processFile(name, subLang, db, check):
     else:
         hd = 3
     #Read date
-    cmd = ["exiftool", "-api", "largefilesupport=1", "-ContentCreateDate", name]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-ContentCreateDate", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     r = process.stdout.read().decode("UTF-8").split(':', 1)[1].strip()
@@ -178,10 +178,10 @@ def processFile(name, subLang, db, check):
     newName = os.path.join(os.path.dirname(name), date + ' ' + oldName)
     os.rename(name, newName)
     #Fix metadata
-    cmd = ["exiftool", "-api", "largefilesupport=1", "-overwrite_original", "-ContentCreateDate='{}'".format(dateTime), "-Comment={}".format('YoutubeID: ' + videoID), "-Encoder=", newName]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-overwrite_original", "-ContentCreateDate='{}'".format(dateTime), "-Comment={}".format('YoutubeID: ' + videoID), "-Encoder=", newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
-    cmd = ["exiftool", "-api", "largefilesupport=1", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
+    cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     checksum = yta.calcSHA(newName)

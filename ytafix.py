@@ -64,7 +64,7 @@ def fix(args):
                 print("ERROR: Unable to fix \"{}\"".format(f["name"]))
                 continue
             #Update artist and title
-            cmd = ["exiftool", "-api", "largefilesupport=1", "-overwrite_original", "-Artist={}".format(artist), "-Title={}".format(title), filepath]
+            cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-overwrite_original", "-Artist={}".format(artist), "-Title={}".format(title), filepath]
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
             process.wait()
             #Calculate checksums
