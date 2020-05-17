@@ -1,42 +1,55 @@
 #!/usr/bin/env python3
-''' ytafix - update all wrong artits '''
+''' ytafix - update all wrong artists '''
 
 import os
 import sys
+import argparse
 import subprocess
 import sqlite3
 import requests
 import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
-def fix(args):
+def fix(args, parsed=False):
     '''Update artist in database and metadata
 
     :param args: The command line arguments given by the user
     :type args: list
     '''
-    try:
-        #All subdirs
-        if args[1] == "-a":
-            fixAll(args)
-            return
-        path = os.path.normpath(os.path.abspath(args[1]))
-        if not os.path.isdir(path):
-            print("Usage: ytafix DIR ARTIST")
-            return
-        dbPath = os.path.join(path, "archive.db")
-        db = yta.connectDB(dbPath)
-        if len(args) == 3:
-            artist = args[2]
-        else:
+    #Parse arguments
+    if not parsed:
+        parser = argparse.ArgumentParser(prog="ytafix", description="Fix wrong artist information")
+        parser.add_argument("-a", "--all", action="store_const", dest="all", const=True, default=False, help="Run fixer for all subdirectories with archive databases. In this mode, the ARTIST will always be read from the database")
+        parser.add_argument("DIR", help="The directory to work in")
+        parser.add_argument("ARTIST", nargs='?', help="The correct artist name (read from the database if not given)")
+        args = parser.parse_args()
+
+    #Run fixer for all subdirectories
+    if args.all:
+        fixAll(args)
+        return
+
+    #Validate path
+    path = os.path.normpath(os.path.abspath(args.DIR))
+    dbPath = os.path.join(path, "archive.db")
+    if not os.path.isdir(path) or not os.path.isfile(dbPath):
+        parser.error("DIR must be a directory containg an archive database")
+
+    #Connect to database
+    db = yta.connectDB(dbPath)
+
+    #Get correct artist
+    if args.ARTIST:
+        artist = args.ARTIST
+    else:
+        try:
             r = db.execute("SELECT name FROM channel LIMIT 1;")
             (artist, ) = r.fetchone()
             if not artist:
-                print("Usage: ytafix DIR ARTIST")
-                return
-    except (OSError, IndexError, sqlite3.Error):
-        print("Usage: ytafix DIR ARTIST")
-        return
+                raise sqlite3.Error
+        except sqlite3.Error:
+            parser.error("No correct artist specified and unable to read it from the database")
+
 
     #Read filenames and checksums from database
     files = []
@@ -85,10 +98,10 @@ def fixAll(args):
     :param args: The command line arguments given by the user
     :type args: list
     '''
-    #Remove "-a" from args
-    args.pop(1)
     #Get path
-    path = os.path.normpath(os.path.abspath(args[1]))
+    path = os.path.normpath(os.path.abspath(args.DIR))
+    args.all = False
+    args.ARTIST = None
     #Get subdirs in path
     subdirs = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
     subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
@@ -96,9 +109,12 @@ def fixAll(args):
         print("ERROR: No subdirs with archive databases at \'{}\'".format(path))
         return
     #Loop through all subdirs
+    print("FIXING ALL CHANNELS IN \'{}\'\n".format(path))
     for subdir in subdirs:
-        print("\nFIXING \'{}\'".format(subdir))
-        fix(["ytafix", subdir])
+        name = os.path.basename(os.path.normpath(subdir))
+        print("\nFIXING \'{}\'".format(name))
+        args.DIR = subdir
+        fix(args, True)
     print("\nDONE!")
 # ########################################################################### #
 
