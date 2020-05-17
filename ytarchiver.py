@@ -23,11 +23,17 @@ def archive(args):
             archiveAll(args)
             return
         #Check files?
-        elif args[1] == "-c":
+        if "-c" in args:
             check = "-c"
-            args.pop(1)
+            args.remove("-c")
         else:
             check = ""
+        #Limit to HD
+        if "-hd" in args:
+            hdonly = True
+            args.remove("-hd")
+        else:
+            hdonly = False
         #Get directory path
         path = os.path.normpath(os.path.abspath(args[1]))
         if not os.path.isdir(path):
@@ -80,7 +86,10 @@ def archive(args):
     dbPath = os.path.join(path, "archive.db")
     writeDownloadedFile(dbPath, dlfilePath)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
-    dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+    if hdonly:
+        dlformat = "(bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+    else:
+        dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args[2], "--write-description", "--exec", "ytapost {} {{}} {} ".format(check, args[2]), args[3]]
 
     logFile = os.path.join(path, "log")
