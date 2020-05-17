@@ -4,45 +4,42 @@
 import os
 import sys
 import subprocess
+import argparse
 import shutil
 import sqlite3
 import ytacommon as yta
 import ytainfo
 
 # --------------------------------------------------------------------------- #
-def archive(args):
+def archive(args, parsed=False):
     '''Archive youtube videos or playlists
 
     :param args: The command line arguments given by the user
     :type args: list
     '''
 
-    try:
-        #All subdirs
-        if args[1] == "-a":
-            archiveAll(args)
-            return
-        #Check files?
-        if "-c" in args:
-            check = "-c"
-            args.remove("-c")
-        else:
-            check = ""
-        #Limit to HD
-        if "-hd" in args:
-            hdonly = True
-            args.remove("-hd")
-        else:
-            hdonly = False
-        #Get directory path
-        path = os.path.normpath(os.path.abspath(args[1]))
-        if not os.path.isdir(path):
-            print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
-            return
-    except IndexError:
-        print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
+    #Parse arguments
+    if not parsed:
+        parser = argparse.ArgumentParser(prog="ytarchiver", description="Download and archive Youtube videos or playlists")
+        parser.add_argument("-a", "--all", action="store_const", dest="all", const=True, default=False, help="Run archiver for all subdirectories with archive databases. In this mode, LANG and VIDEO will always be read from the databases")
+        parser.add_argument("-c", "--check", action="store_const", dest="check", const="-c", default="", help="Check each file after download")
+        parser.add_argument("-hd", "--hd", action="store_const", dest="hdonly", const=True, default=False, help="Limit download resolution to 1080p")
+        parser.add_argument("DIR", help="The directory to work in")
+        parser.add_argument("LANG", nargs='?', help="The video language (read from the database if not given)")
+        parser.add_argument("VIDEO", nargs='?', help="The Youtube video or playlist ID (read from the database if not given)")
+        args = parser.parse_args()
+
+    #Archive all subdirectories
+    if args.all:
+        archiveAll(args)
         return
 
+    #Validate path
+    path = os.path.normpath(os.path.abspath(args.DIR))
+    if not os.path.isdir(path):
+        parser.error("An existing directory must be specified")
+
+    #Check if database exists
     dbPath = os.path.join(path, "archive.db")
     if not os.path.isfile(dbPath):
         #No database found, ask to create one
@@ -56,42 +53,33 @@ def archive(args):
         if a == 'y':
             ytainfo.add(dbPath)
 
-    if len(args) != 4:
-        if len(args) == 2:
-            #Try reading playlist and language from database
+    #Check if ID and language are specified
+    if not args.LANG or not args.VIDEO:
+        #Try reading playlist and language from database
+        try:
+            (args.LANG, args.VIDEO) = readInfoFromDB(dbPath)
+        except (sqlite3.Error, TypeError):
+            #Try reading playlist and language from files
             try:
-                args += readInfoFromDB(dbPath)
-            except sqlite3.Error:
-                #Try reading playlist and language from files
-                try:
-                    with open(os.path.join(path, "language"), 'r') as f:
-                        args.append(f.readline().strip())
-                    with open(os.path.join(path, "playlist"), 'r') as f:
-                        args.append(f.readline().strip())
-                except (IndexError, OSError):
-                    print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
-                    return
-        elif len(args) == 3:
-            try:
+                with open(os.path.join(path, "language"), 'r') as f:
+                    args.LANG = f.readline().strip()
                 with open(os.path.join(path, "playlist"), 'r') as f:
-                    args.append(f.readline().strip())
+                    args.VIDEO = f.readline().strip()
             except (IndexError, OSError):
-                print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
-                return
-        else:
-            print("Usage: ytarchiver DIR SUBLANG YOUTUBEID")
-            return
+                parser.error("LANG and VIDEO must be specified if no database exisits.")
 
+    #Start download
     dlfilePath = os.path.join(path, "downloaded")
     dbPath = os.path.join(path, "archive.db")
     writeDownloadedFile(dbPath, dlfilePath)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
-    if hdonly:
+    if args.hdonly:
         dlformat = "(bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     else:
         dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
-    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args[2], "--write-description", "--exec", "ytapost {} {{}} {} ".format(check, args[2]), args[3]]
+    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args.LANG, "--write-description", "--exec", "ytapost {} {{}} {}".format(args.check, args.LANG), args.VIDEO]
 
+    #Write log
     logFile = os.path.join(path, "log")
     with open(logFile, 'w+') as f:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -118,14 +106,11 @@ def archiveAll(args):
     :param args: The command line arguments given by the user
     :type args: list
     '''
-    #Remove "-a" from args
-    args.pop(1)
-    a = ["ytarchiver.py"]
-    if args[1] == "-c":
-        a.append("-c")
-        args.pop(1)
+    #Set all to false for susequent calls
+    args.all = False
+
     #Get path
-    path = os.path.normpath(os.path.abspath(args[1]))
+    path = os.path.normpath(os.path.abspath(args.DIR))
     #Get subdirs in path
     subdirs = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
     subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
@@ -143,8 +128,11 @@ def archiveAll(args):
     #Loop through all subdirs
     for subdir in subdirs:
         name = os.path.basename(os.path.normpath(subdir))
+        args.DIR = subdir
+        args.LANG = None
+        args.VIDEO = None
         print("\nARCHIVING \'{}\'".format(name))
-        archive(a + [subdir])
+        archive(args, True)
         #Read errors from log
         error = ""
         with open(os.path.join(subdir, "log"), 'r') as f:
