@@ -4,6 +4,7 @@
 import os
 import sys
 import subprocess
+import argparse
 import shutil
 import sqlite3
 from datetime import datetime, timezone
@@ -19,41 +20,27 @@ def postprocess(args):
     '''
     #Get files
     files = []
-    try:
-        if args[1] == "-c":
-            check = True
-            args.pop(1)
+    parser = argparse.ArgumentParser(prog="ytapost", description="Perform the postprocessing steps on a downloaded video file")
+    parser.add_argument("-c", "--check", action="store_const", dest="check", const=True, default=False, help="Check file integrity")
+    parser.add_argument("PATH", help="The file or the directory to work with")
+    parser.add_argument("LANG", nargs='?', default="", help="The video language")
+    args = parser.parse_args()
+
+    path = os.path.normpath(os.path.abspath(args.PATH))
+    if os.path.isfile(path):
+        dirPath = os.path.dirname(path)
+        if path.lower().endswith((".m4v", ".mp4")):
+            files.append(path)
         else:
-            check = False
-        path = os.path.normpath(os.path.abspath(args[1]))
-        if os.path.isfile(path):
-            dirPath = os.path.dirname(path)
-            if path.lower().endswith((".m4v", ".mp4")):
-                files.append(path)
-            else:
-                print("Unsupported file format, only .mp4 and .m4v are supported")
-                return
-        elif os.path.isdir(path):
-            dirPath = path
-            allf = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
-            for f in allf:
-                if f.lower().endswith((".m4v", ".mp4")):
-                    files.append(os.path.join(path, f))
-            if not files:
-                print("No supported files in directory, only .mp4 and .m4v are supported")
-                return
-        else:
-            print("Usage: vapost.py FILE/DIR")
-            return
-    except IndexError:
-        print("Usage: vapost.py FILE/DIR")
-        return
-    #Get subtitle language
-    subLang = ""
-    try:
-        subLang = args[2]
-    except IndexError:
-        pass
+            parser.error("Unsupported file format, only .mp4 and .m4v are supported")
+    elif os.path.isdir(path):
+        dirPath = path
+        allf = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+        for f in allf:
+            if f.lower().endswith((".m4v", ".mp4")):
+                files.append(os.path.join(path, f))
+        if not files:
+            parser.error("No supported files in directory, only .mp4 and .m4v are supported")
 
     #Connect to database
     try:
@@ -65,7 +52,7 @@ def postprocess(args):
         return
 
     for f in files:
-        processFile(f, subLang, db, check)
+        processFile(f, args.LANG, db, args.check)
 
     yta.closeDB(dbCon)
 # ########################################################################### #
