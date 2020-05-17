@@ -4,6 +4,7 @@
 import os
 import sys
 import subprocess
+import argparse
 import sqlite3
 import ytacommon as yta
 
@@ -14,14 +15,13 @@ def findMissing(args):
     :param argv: The command line arguments given by the user
     :type argv: list
     '''
-    try:
-        path = os.path.normpath(os.path.abspath(args[1]))
-        if not os.path.isdir(path):
-            print("No directory specified")
-            return
-    except (OSError, IndexError):
-        print("No directory specified")
-        return
+    parser = argparse.ArgumentParser(prog="ytamissing", description="Find discrepancies between files and archive database in directory")
+    parser.add_argument("DIR", help="The directory to work on")
+    args = parser.parse_args()
+    path = os.path.normpath(os.path.abspath(args.DIR))
+    if not os.path.isdir(path):
+        parser.error("DIR must be a directory")
+
     #Read IDs from file
     fFiles = []
     fIDs = []

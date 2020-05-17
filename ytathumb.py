@@ -3,7 +3,7 @@
 
 import os
 import sys
-import subprocess
+import argparse
 import sqlite3
 import requests
 import ytacommon as yta
@@ -16,15 +16,15 @@ def addThumbnails(args):
     :type args: list
     '''
     #Get database path
-    try:
-        path = os.path.normpath(os.path.abspath(args[1]))
-        dbPath = os.path.join(path, "archive.db")
-        if not os.path.isdir(path) or not os.path.isfile(dbPath):
-            print("Usage: ytathumb DIR")
-            return
-    except (OSError, IndexError):
-        print("Usage: ytathumb DIR")
-        return
+    parser = argparse.ArgumentParser(prog="ytathumb", description="Add thumbnails to exising archive databases")
+    parser.add_argument("DIR", help="The directory containing the archive database to work on")
+    args = parser.parse_args()
+
+    path = os.path.normpath(os.path.abspath(args.DIR))
+    dbPath = os.path.join(path, "archive.db")
+    if not os.path.isdir(path) or not os.path.isfile(dbPath):
+        parser.error("DIR must be a directory containg an archive database")
+
     #Connect to database
     dbCon = yta.connectDB(dbPath)
     db = dbCon.cursor()

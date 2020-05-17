@@ -3,7 +3,7 @@
 
 import os
 import sys
-import sqlite3
+import argparse
 import requests
 import ytacommon as yta
 
@@ -14,16 +14,16 @@ def addInfo(args):
     :param args: The command line arguments given by the user
     :type args: list
     '''
-    try:
-        path = os.path.normpath(os.path.abspath(args[1]))
-        if os.path.isdir(path):
-            dbPath = os.path.join(path, "archive.db")
-            add(dbPath)
-        else:
-            print("Usage: ytainfo DIR")
-    except (OSError, IndexError):
-        print("Usage: ytainfo DIR")
-        return
+    parser = argparse.ArgumentParser(prog="ytainfo", description="Add channel info to exising archive databases")
+    parser.add_argument("DIR", help="The directory containing the archive database to work on")
+    args = parser.parse_args()
+
+    path = os.path.normpath(os.path.abspath(args.DIR))
+    dbPath = os.path.join(path, "archive.db")
+    if not os.path.isdir(path) or not os.path.isfile(dbPath):
+        parser.error("DIR must be a directory containg an archive database")
+
+    add(dbPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
