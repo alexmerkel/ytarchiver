@@ -72,6 +72,12 @@ def check(args, parsed=False):
                 errors.append(msg)
     #Close database
     yta.closeDB(db)
+
+    #Print status
+    if errors:
+        print("\nDONE, {} CORRUPTED FILE(S)".format(len(errors)))
+    else:
+        print("\nDONE, NO CORRUPTED FILE")
     #Return errors
     return errors
 # ########################################################################### #
