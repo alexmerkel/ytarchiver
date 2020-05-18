@@ -23,7 +23,9 @@ def archive(args, parsed=False):
         parser = argparse.ArgumentParser(prog="ytarchiver", description="Download and archive Youtube videos or playlists")
         parser.add_argument("-a", "--all", action="store_const", dest="all", const=True, default=False, help="Run archiver for all subdirectories with archive databases. In this mode, LANG and VIDEO will always be read from the databases")
         parser.add_argument("-c", "--check", action="store_const", dest="check", const="-c", default="", help="Check each file after download")
-        parser.add_argument("-hd", "--hd", action="store_const", dest="hdonly", const=True, default=False, help="Limit download resolution to 1080p")
+        parser.add_argument("-8k", "--8K", action="store_const", dest="quality", const="8k", help="Limit download resolution to 8K")
+        parser.add_argument("-4k", "--4K", action="store_const", dest="quality", const="4k", help="Limit download resolution to 4K (default)")
+        parser.add_argument("-hd", "--HD", action="store_const", dest="quality", const="hd", help="Limit download resolution to full HD")
         parser.add_argument("DIR", help="The directory to work in")
         parser.add_argument("LANG", nargs='?', help="The video language (read from the database if not given)")
         parser.add_argument("VIDEO", nargs='?', help="The Youtube video or playlist ID (read from the database if not given)")
@@ -73,8 +75,10 @@ def archive(args, parsed=False):
     dbPath = os.path.join(path, "archive.db")
     writeDownloadedFile(dbPath, dlfilePath)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
-    if args.hdonly:
+    if args.quality == "hd":
         dlformat = "(bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+    elif args.quality == "8k":
+        dlformat = "(bestvideo[width<8000][width>4000][ext=mp4]/bestvideo[width<8000][width>4000]/bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     else:
         dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args.LANG, "--write-description", "--exec", "ytapost {} {{}} {}".format(args.check, args.LANG), args.VIDEO]
