@@ -162,7 +162,15 @@ def processFile(name, subLang, db, check):
         dateTime = r[0:4] + ':' + r[4:6] + ':' + r[6:8] + " 00:00:00+0"
         timestamp = datetime.timestamp(datetime.strptime(dateTime + "000", "%Y:%m:%d %H:%M:%S%z"))
     #Add date to file name
-    newName = os.path.join(os.path.dirname(name), date + ' ' + oldName)
+    (oldName, ext) = os.path.splitext(oldName)
+    fileName = "{} {}{}".format(date, oldName, ext)
+    #Check if file name already exists
+    i = 1
+    while checkFilename(fileName, db):
+        i += 1
+        fileName = "{} {} {}{}".format(date, oldName, i, ext)
+    #Rename file
+    newName = os.path.join(os.path.dirname(name), fileName)
     os.rename(name, newName)
     #Fix metadata
     cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-overwrite_original", "-ContentCreateDate='{}'".format(dateTime), "-Comment={}".format('YoutubeID: ' + videoID), "-Encoder=", newName]
@@ -195,7 +203,7 @@ def processFile(name, subLang, db, check):
             thumbFormat = None
 
     #Save to database
-    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, os.path.basename(newName), checksum, thumbData, thumbFormat, duration, tags)
+    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -235,6 +243,23 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
     '''
     insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
     db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags))
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def checkFilename(name, db):
+    '''Check if the given filename is already in the database
+
+    :param name: The filename to check
+    :type directory: string
+    :param db: Connection to the metadata database
+    :type db: sqlite3.Cursor
+
+    :returns: True if filename in database, else False
+    :rtype: boolean
+    '''
+    cmd = "SELECT id FROM videos WHERE filename = ?;"
+    r = db.execute(cmd, (name,)).fetchone()
+    return bool(r)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
