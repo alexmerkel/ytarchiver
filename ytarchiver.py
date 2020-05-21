@@ -22,6 +22,7 @@ def archive(args, parsed=False):
     if not parsed:
         parser = argparse.ArgumentParser(prog="ytarchiver", description="Download and archive Youtube videos or playlists")
         parser.add_argument("-a", "--all", action="store_const", dest="all", const=True, default=False, help="Run archiver for all subdirectories with archive databases. In this mode, LANG and VIDEO will always be read from the databases")
+        parser.add_argument("-f", "--file", action="store", dest="file", help="Read IDs to archive from a batch file with one ID per line")
         parser.add_argument("-c", "--check", action="store_const", dest="check", const="-c", default="", help="Check each file after download")
         parser.add_argument("-8k", "--8K", action="store_const", dest="quality", const="8k", help="Limit download resolution to 8K")
         parser.add_argument("-4k", "--4K", action="store_const", dest="quality", const="4k", help="Limit download resolution to 4K (default)")
@@ -56,7 +57,7 @@ def archive(args, parsed=False):
             ytainfo.add(dbPath)
 
     #Check if ID and language are specified
-    if not args.LANG or not args.VIDEO:
+    if not args.LANG or (not args.VIDEO and not args.file):
         #Try reading playlist and language from database
         try:
             (args.LANG, args.VIDEO) = readInfoFromDB(dbPath)
@@ -81,7 +82,12 @@ def archive(args, parsed=False):
         dlformat = "(bestvideo[width<8000][width>4000][ext=mp4]/bestvideo[width<8000][width>4000]/bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     else:
         dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
-    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args.LANG, "--write-description", "--exec", "ytapost {} {{}} {}".format(args.check, args.LANG), args.VIDEO]
+    #Check if archiving one video/playlist or using a batch file
+    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args.LANG, "--write-description", "--exec", "ytapost {} {{}} {}".format(args.check, args.LANG)]
+    if args.file:
+        cmd += ["--batch-file", args.file]
+    else:
+        cmd.append(args.VIDEO)
 
     #Write log
     logFile = os.path.join(path, "log")
