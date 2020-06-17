@@ -47,6 +47,12 @@ def check(args, parsed=False):
 
     for f in files:
         filepath = os.path.join(path, f["name"])
+        #CHeck if file exits
+        if not os.path.isfile(filepath):
+            msg = "ERROR: File \"{}\" missing".format(f["name"])
+            print(msg)
+            errors.append(msg)
+            continue
         #Check movie file
         if args.check:
             cmd = ["ffmpeg", "-v", "error", "-i", filepath, "-f", "null", "-"]
