@@ -28,6 +28,9 @@ def addMetadata(args):
     if not os.path.isdir(path) or not os.path.isfile(dbPath):
         parser.error("DIR must be a directory containg an archive database")
 
+    #Check if database needs upgrade
+    yta.upgradeDatabase(dbPath)
+
     #Connect to database
     dbCon = yta.connectDB(dbPath)
     db = dbCon.cursor()

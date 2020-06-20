@@ -5,7 +5,7 @@ import os
 import sys
 import subprocess
 import argparse
-import shutil
+import time
 import sqlite3
 import ytacommon as yta
 import ytainfo
@@ -27,6 +27,7 @@ def archive(args, parsed=False):
         parser.add_argument("-8k", "--8K", action="store_const", dest="quality", const="8k", help="Limit download resolution to 8K")
         parser.add_argument("-4k", "--4K", action="store_const", dest="quality", const="4k", help="Limit download resolution to 4K (default)")
         parser.add_argument("-hd", "--HD", action="store_const", dest="quality", const="hd", help="Limit download resolution to full HD")
+        parser.add_argument("-V", "--version", action="version", version='%(prog)s {}'.format(yta.__version__))
         parser.add_argument("DIR", help="The directory to work in")
         parser.add_argument("LANG", nargs='?', help="The video language (read from the database if not given)")
         parser.add_argument("VIDEO", nargs='?', help="The Youtube video or playlist ID (read from the database if not given)")
@@ -55,6 +56,11 @@ def archive(args, parsed=False):
                 break
         if a == 'y':
             ytainfo.add(dbPath)
+        else:
+            ytainfo.createEmpty(dbPath)
+
+    #Check if database needs upgrade
+    yta.upgradeDatabase(dbPath)
 
     #Check if ID and language are specified
     if not args.LANG or (not args.VIDEO and not args.file):
@@ -70,6 +76,11 @@ def archive(args, parsed=False):
                     args.VIDEO = f.readline().strip()
             except (IndexError, OSError):
                 parser.error("LANG and VIDEO must be specified if no database exisits.")
+
+    #Update lastupdate field
+    db = yta.connectDB(dbPath)
+    db.execute("UPDATE channel SET lastupdate = ? WHERE id = 1", (int(time.time()), ))
+    yta.closeDB(db)
 
     #Start download
     dlfilePath = os.path.join(path, "downloaded")
@@ -95,12 +106,18 @@ def archive(args, parsed=False):
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         while p.poll() is None:
             line = p.stdout.readline().decode("utf-8")
-            print(line, end='')
+            sys.stdout.write(line)
             f.write(line)
         line = p.stdout.read().decode("utf-8")
         f.write(line)
-        print(line, end='')
+        sys.stdout.write(line)
         p.wait()
+
+    #Update video number
+    db = yta.connectDB(dbPath)
+    videos = db.execute("SELECT count(*) FROM videos;").fetchone()[0]
+    db.execute("UPDATE channel SET videos = ? WHERE id = 1", (videos, ))
+    yta.closeDB(db)
 
     #Remove download archive file
     try:

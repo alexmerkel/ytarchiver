@@ -37,6 +37,9 @@ def check(args, parsed=False):
     files = []
     errors = []
     try:
+        #Check if database needs upgrade
+        yta.upgradeDatabase(dbPath)
+
         db = yta.connectDB(dbPath)
         r = db.execute("SELECT youtubeID,filename,checksum FROM videos;")
         for f in r.fetchall():

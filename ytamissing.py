@@ -42,6 +42,9 @@ def findMissing(args):
     dbPath = os.path.join(path, "archive.db")
     aFiles = []
     try:
+        #Check if database needs upgrade
+        yta.upgradeDatabase(dbPath)
+
         db = yta.connectDB(dbPath)
         r = db.execute("SELECT youtubeID,title FROM videos;")
         for item in r.fetchall():

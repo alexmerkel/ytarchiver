@@ -35,6 +35,9 @@ def fix(args, parsed=False):
     if not os.path.isdir(path) or not os.path.isfile(dbPath):
         parser.error("DIR must be a directory containg an archive database")
 
+    #Check if database needs upgrade
+    yta.upgradeDatabase(dbPath)
+
     #Connect to database
     db = yta.connectDB(dbPath)
 

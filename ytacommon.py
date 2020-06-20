@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 ''' ytacommon - common functions for ytarchiver scripts '''
 
+import sys
 import sqlite3
 import hashlib
 import requests
+
+# --------------------------------------------------------------------------- #
+__version__ = "1.1.0"
+__dbversion__ = 2
+# ########################################################################### #
 
 # --------------------------------------------------------------------------- #
 def connectDB(path):
@@ -84,4 +90,46 @@ def loadImage(url):
     r.raw.decode_content = True
     r.raise_for_status()
     return[r.raw.data, r.headers['content-type']]
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def upgradeDatabase(dbPath):
+    '''Check the database version and upgrade it if not newest
+
+    :param dbPath: Path of the archive database
+    :type dbPath: string
+
+    :raises: :class:``sqlite3.Error: Unable to read from database
+    '''
+    #Connect to database
+    dbCon = connectDB(dbPath)
+    db = dbCon.cursor()
+    #Get database version
+    try:
+        r = db.execute("SELECT dbversion FROM channel ORDER BY id DESC LIMIT 1;")
+        version = r.fetchone()[0]
+    except sqlite3.Error:
+        #No version field -> db version 1
+        version = 1
+
+    #Check if not uptodate
+    if version < __dbversion__:
+        print("Upgrading database")
+        try:
+            #Perform upgrade to version 2
+            if version < 2:
+                db.execute('ALTER TABLE channel ADD COLUMN videos INTEGER NOT NULL DEFAULT 0;')
+                db.execute('ALTER TABLE channel ADD COLUMN lastupdate INTEGER NOT NULL DEFAULT 0;')
+                db.execute('ALTER TABLE channel ADD COLUMN dbversion INTEGER NOT NULL DEFAULT {};'.format(__dbversion__))
+                #Update db version
+                db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (__dbversion__, ))
+                version = 2
+        except sqlite3.Error as e:
+            print("ERROR: Unable to upgrade database (\"{}\")".format(e))
+            dbCon.rollback()
+            closeDB(dbCon)
+            sys.exit(1)
+
+    #Close database
+    closeDB(dbCon)
 # ########################################################################### #

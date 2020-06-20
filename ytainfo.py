@@ -23,6 +23,9 @@ def addInfo(args):
     if not os.path.isdir(path) or not os.path.isfile(dbPath):
         parser.error("DIR must be a directory containg an archive database")
 
+    #Check if database needs upgrade
+    yta.upgradeDatabase(dbPath)
+
     add(dbPath)
 # ########################################################################### #
 
@@ -128,9 +131,24 @@ def add(dbPath):
             print("ERROR: Invalid URL")
             continue
 
-    insert = "INSERT INTO channel(name, url, playlist, language, description, location, joined, links, profile, profileformat, banner, bannerformat) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, url, playlist, language, desc, location, joined, links, profile, profileformat, banner, bannerformat))
+    insert = "INSERT INTO channel(name, url, playlist, language, description, location, joined, links, profile, profileformat, banner, bannerformat, videos, lastupdate, dbversion) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, (name, url, playlist, language, desc, location, joined, links, profile, profileformat, banner, bannerformat, 0, 0, yta.__dbversion__))
     print(yta.color.BOLD + "FINISHED ADDING CHANNEL INFO" + yta.color.END)
+
+    yta.closeDB(db)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def createEmpty(dbPath):
+    '''Create a database without adding information
+
+    :param dbPath: The path of the archive database
+    :type dbPath: string
+    '''
+    #Create/connect database
+    db = createOrConnectDB(dbPath)
+    insert = "INSERT INTO channel(name, url, playlist, language, videos, lastupdate, dbversion) VALUES(?,?,?,?,?,?,?)"
+    db.execute(insert, ('', '', '', '', 0, 0, yta.__dbversion__))
 
     yta.closeDB(db)
 # ########################################################################### #
@@ -160,7 +178,10 @@ def createOrConnectDB(path):
                        profile BLOB,
                        profileformat TEXT,
                        banner BLOB,
-                       bannerformat TEXT
+                       bannerformat TEXT,
+                       videos INTEGER NOT NULL,
+                       lastupdate INTEGER NOT NULL,
+                       dbversion INTEGER NOT NULL
                    ); """
 
     #Create database
