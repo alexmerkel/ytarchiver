@@ -8,6 +8,7 @@ import argparse
 import shutil
 import sqlite3
 from datetime import datetime, timezone
+from pycountry import languages
 import ytacommon as yta
 import ytameta
 
@@ -74,12 +75,7 @@ def processFile(name, subLang, db, check):
     '''
     videoFileComp = os.path.splitext(name)
     #Get language for ffmpeg
-    if subLang == "de":
-        lang = "deu"
-    elif subLang == "en":
-        lang = "eng"
-    else:
-        lang = subLang
+    lang = languages.get(alpha_2=subLang).alpha_3
     #If subtitles, read and embed them
     subs = None
     tmpFile = videoFileComp[0] + "_tmp" + videoFileComp[1]

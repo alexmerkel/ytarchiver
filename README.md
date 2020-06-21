@@ -62,6 +62,7 @@ Requirements
 *   [ffmpeg](https://www.ffmpeg.org/)
 *   [exiftool](https://www.sno.phy.queensu.ca/~phil/exiftool/)
 *   [requests](https://pypi.org/project/requests/)
+*   [pycountry](https://pypi.org/project/pycountry/)
 
 License
 -------
