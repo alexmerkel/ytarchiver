@@ -131,8 +131,8 @@ def add(dbPath):
             print("ERROR: Invalid URL")
             continue
 
-    insert = "INSERT INTO channel(name, url, playlist, language, description, location, joined, links, profile, profileformat, banner, bannerformat, videos, lastupdate, dbversion) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, url, playlist, language, desc, location, joined, links, profile, profileformat, banner, bannerformat, 0, 0, yta.__dbversion__))
+    insert = "INSERT INTO channel(name, url, playlist, language, description, location, joined, links, profile, profileformat, banner, bannerformat, videos, lastupdate, dbversion, maxresolution) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, (name, url, playlist, language, desc, location, joined, links, profile, profileformat, banner, bannerformat, 0, 0, yta.__dbversion__, "default"))
     print(yta.color.BOLD + "FINISHED ADDING CHANNEL INFO" + yta.color.END)
 
     yta.closeDB(db)
@@ -147,8 +147,8 @@ def createEmpty(dbPath):
     '''
     #Create/connect database
     db = createOrConnectDB(dbPath)
-    insert = "INSERT INTO channel(name, url, playlist, language, videos, lastupdate, dbversion) VALUES(?,?,?,?,?,?,?)"
-    db.execute(insert, ('', '', '', '', 0, 0, yta.__dbversion__))
+    insert = "INSERT INTO channel(name, url, playlist, language, videos, lastupdate, dbversion, maxresolution) VALUES(?,?,?,?,?,?,?,?)"
+    db.execute(insert, ('', '', '', '', 0, 0, yta.__dbversion__, "default"))
 
     yta.closeDB(db)
 # ########################################################################### #
@@ -181,7 +181,8 @@ def createOrConnectDB(path):
                        bannerformat TEXT,
                        videos INTEGER NOT NULL,
                        lastupdate INTEGER NOT NULL,
-                       dbversion INTEGER NOT NULL
+                       dbversion INTEGER NOT NULL,
+                       maxresolution NOT NULL
                    ); """
 
     #Create database

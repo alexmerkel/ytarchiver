@@ -48,6 +48,7 @@ def fix(args, parsed=False):
         try:
             r = db.execute("SELECT name FROM channel LIMIT 1;")
             (artist, ) = r.fetchone()
+            del r
             if not artist:
                 raise sqlite3.Error
         except sqlite3.Error:
@@ -60,6 +61,7 @@ def fix(args, parsed=False):
         r = db.execute("SELECT creator,filename,youtubeID FROM videos;")
         for f in r.fetchall():
             files.append({"artist" : f[0], "name" : f[1], "id" : f[2]})
+        del r
     except sqlite3.Error as e:
         print(e)
         return
@@ -70,28 +72,55 @@ def fix(args, parsed=False):
         if f["artist"] != artist:
             found = True
             filepath = os.path.join(path, f["name"])
-            #Get title
             try:
-                r = requests.get("https://www.youtube.com/oembed?url=http://www.youtube.com/watch?v=" + f["id"])
-                r.raise_for_status()
-                d = r.json()
-                title = d["title"]
+                #Change meta data
+                artist, title = fixVideo(filepath, f["id"], artist)
+                #Calculate checksums
+                checksum = yta.calcSHA(filepath)
+                #Update database
+                db.execute("UPDATE videos SET checksum = ?, creator = ? , title = ? WHERE youtubeID = ?", (checksum, artist, title, f["id"]))
             except requests.exceptions.HTTPError:
                 print("ERROR: Unable to fix \"{}\"".format(f["name"]))
                 continue
-            #Update artist and title
-            cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-overwrite_original", "-Artist={}".format(artist), "-Title={}".format(title), "-Album=", filepath]
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-            process.wait()
-            #Calculate checksums
-            checksum = yta.calcSHA(filepath)
-            #Update database
-            db.execute("UPDATE videos SET checksum = ?, creator = ? , title = ? WHERE filename = ?", (checksum, artist, title, f["name"]))
             print("File \"{}\" fixed".format(f["name"]))
     if not found:
         print("No files to fix")
     #Close database
     yta.closeDB(db)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def fixVideo(path, videoID, correctArtist=None, fileArtist=None):
+    '''Fix a video
+
+    :param path: The filepath
+    :type path: string
+    :param videoID: The video ID
+    :type videoID: string
+    :param correctArtist: The correct artist name (Optional, read from the JSON if not given)
+    :type correctArtist: string
+    :param fileArtist: The artist name to compare the one correct one to (Optional, if not given, the new artist and title will always be saved)
+    :type fileArtist: string
+
+    :raises: :class:``requests.exceptions.HTTPError: Unable to get title
+
+    :returns: Tuple with new metadata (artist, title)
+    :rtype: touple(string, string)
+    '''
+    #Get title
+    r = requests.get("https://www.youtube.com/oembed?url=http://www.youtube.com/watch?v=" + videoID)
+    r.raise_for_status()
+    d = r.json()
+    title = d["title"]
+    if not correctArtist:
+        correctArtist = d["author_name"]
+    #Update artist and title
+    if not fileArtist or fileArtist != correctArtist:
+        cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-overwrite_original", "-Artist={}".format(correctArtist), "-Title={}".format(title), "-Album=", path]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        process.wait()
+    #Return new metadata
+    return(correctArtist, title)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

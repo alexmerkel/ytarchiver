@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pycountry import languages
 import ytacommon as yta
 import ytameta
+import ytafix
 
 # --------------------------------------------------------------------------- #
 def postprocess(args):
@@ -117,18 +118,7 @@ def processFile(name, subLang, db, check):
     process.wait()
     title = process.stdout.read().decode("UTF-8").split(':', 1)[1].strip()
     #Read image width
-    cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-ImageWidth", name]
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    process.wait()
-    width = int(process.stdout.read().decode("UTF-8").split(':', 1)[1].strip())
-    if width < 1200:
-        hd = 0
-    elif 1200 <= width < 1900:
-        hd = 1
-    elif 1900 <= width <= 3500:
-        hd = 2
-    else:
-        hd = 3
+    hd, formatString, width, height = yta.readResolution(name)
     #Read date
     cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-ContentCreateDate", name]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
@@ -168,13 +158,16 @@ def processFile(name, subLang, db, check):
     #Rename file
     newName = os.path.join(os.path.dirname(name), fileName)
     os.rename(name, newName)
-    #Fix metadata
+    #Set additional metadata
     cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "-overwrite_original", "-ContentCreateDate='{}'".format(dateTime), "-Comment={}".format('YoutubeID: ' + videoID), "-Encoder=", newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
     cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
+    #Check if fix requried
+    artist, title = ytafix.fixVideo(newName, videoID, fileArtist=artist)
+    #Calculate checksum
     checksum = yta.calcSHA(newName)
     #Check file integrity
     if check:
@@ -199,11 +192,11 @@ def processFile(name, subLang, db, check):
             thumbFormat = None
 
     #Save to database
-    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags)
+    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags):
+def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang):
     '''Write info to database
 
     :param db: Connection to the database
@@ -234,11 +227,19 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
     :type duration: integer
     :param tags: String with one tag per line
     :type tags: strings
+    :param res: Resolution string
+    :type res: strings
+    :param width: The video image width
+    :type width: integer
+    :param height: The video image height
+    :type height: integer
+    :param lang: Video language code
+    :type lang: strings
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
-    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags))
+    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -284,7 +285,11 @@ def createOrConnectDB(path):
                        thumb BLOB,
                        thumbformat TEXT,
                        duration INTEGER,
-                       tags TEXT
+                       tags TEXT,
+                       language TEXT NOT NULL,
+                       width INTEGER NOT NULL,
+                       height INTEGER NOT NULL,
+                       resolution TEXT NOT NULL
                    ); """
 
     #Create database
