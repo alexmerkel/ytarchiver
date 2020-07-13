@@ -42,7 +42,7 @@ def addMetadata(args):
         #Get video filepath
         youtubeID = item[0]
         try:
-            [timestamp, duration, tags] = getMetadata(youtubeID)
+            [timestamp, duration, tags, _] = getMetadata(youtubeID)
             db.execute("UPDATE videos SET timestamp = ?, duration = ?, tags = ? WHERE youtubeID = ?", (timestamp, duration, tags, youtubeID))
         except FileNotFoundError:
             print("WARNING: No Youtube data API key available, unable to load additional metadata")
@@ -65,7 +65,7 @@ def getMetadata(youtubeID):
     :raises: :class:``OSError: Unable to read API key from file
     :raises: :class:``requests.exceptions.HTTPError: Unable to get metadata
 
-    :returns: List with timestamp (int) at index 0, duration (int) at index 1, and tags (string) at index 2
+    :returns: List with timestamp (int) at index 0, duration (int) at index 1, tags (string) at index 2, and description (string) at index 3
     :rtype: list
     '''
     #Get API key
@@ -82,12 +82,14 @@ def getMetadata(youtubeID):
     #Check if empty
     if not d["items"]:
         print("WARNING: No metadata available for " + youtubeID)
-        return [None, None, None]
+        return [None, None, None, None]
     #Convert update time to timestamp
     try:
         timestamp = int(datetime.timestamp(datetime.strptime(d["items"][0]["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%S.%f%z")))
     except ValueError:
         timestamp = int(datetime.timestamp(datetime.strptime(d["items"][0]["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%S%z")))
+    #Get description
+    description = d["items"][0]["snippet"]["description"]
     #Convert duration to seconds
     duration = convertDuration(d["items"][0]["contentDetails"]["duration"])
     #Extract tags
@@ -96,7 +98,7 @@ def getMetadata(youtubeID):
     else:
         tags = None
     #Return results
-    return [timestamp, duration, tags]
+    return [timestamp, duration, tags, description]
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

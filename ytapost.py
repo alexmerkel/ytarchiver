@@ -137,7 +137,7 @@ def processFile(name, subLang, db, check):
     duration = None
     tags = None
     try:
-        [timestamp, duration, tags] = ytameta.getMetadata(videoID)
+        [timestamp, duration, tags, apiDesc] = ytameta.getMetadata(videoID)
     except FileNotFoundError:
         print("WARNING: No Youtube data API key available, unable to load additional metadata")
     except OSError:
@@ -165,6 +165,13 @@ def processFile(name, subLang, db, check):
     cmd = ["exiftool", "-api", "largefilesupport=1", "-m", "--printConv", "-overwrite_original", "-HDVideo={}".format(hd), newName]
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
     process.wait()
+    #Use description from API if available
+    if apiDesc:
+        desc = apiDesc
+        config = os.path.join(os.path.dirname(os.path.realpath(__file__)), "exiftool.config")
+        cmd = ["exiftool", "-config", config, "-api", "largefilesupport=1", "-overwrite_original", "-ec", "-Description={}".format(desc), newName]
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        process.wait()
     #Check if fix requried
     artist, title = ytafix.fixVideo(newName, videoID, fileArtist=artist)
     #Calculate checksum
