@@ -278,34 +278,11 @@ def createOrConnectDB(path):
     :returns: Connection to the newly created database
     :rtype: sqlite3.Connection
     '''
-    tableCmd = """ CREATE TABLE IF NOT EXISTS videos (
-                       id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
-                       title TEXT NOT NULL,
-                       creator TEXT NOT NULL,
-                       date TEXT NOT NULL,
-                       timestamp INTEGER NOT NULL,
-                       description TEXT,
-                       youtubeID TEXT NOT NULL UNIQUE,
-                       subtitles TEXT,
-                       filename TEXT NOT NULL,
-                       checksum TEXT NOT NULL,
-                       thumb BLOB,
-                       thumbformat TEXT,
-                       duration INTEGER,
-                       tags TEXT,
-                       language TEXT NOT NULL,
-                       width INTEGER NOT NULL,
-                       height INTEGER NOT NULL,
-                       resolution TEXT NOT NULL
-                   ); """
 
     #Create database
     dbCon = yta.connectDB(path)
-    db = dbCon.cursor()
-    #Set encoding
-    db.execute("pragma encoding=UTF8")
-    #Create tables
-    db.execute(tableCmd)
+    #Create table
+    yta.createVideoTable(dbCon)
     #Return database connection
     return dbCon
 # ########################################################################### #

@@ -165,32 +165,10 @@ def createOrConnectDB(path):
     :returns: Connection to the newly created database
     :rtype: sqlite3.Connection
     '''
-    tableCmd = """ CREATE TABLE IF NOT EXISTS channel (
-                       id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
-                       name TEXT NOT NULL,
-                       url TEXT NOT NULL,
-                       playlist TEXT NOT NULL,
-                       language TEXT NOT NULL,
-                       description TEXT,
-                       location TEXT,
-                       joined TEXT,
-                       links TEXT,
-                       profile BLOB,
-                       profileformat TEXT,
-                       banner BLOB,
-                       bannerformat TEXT,
-                       videos INTEGER NOT NULL,
-                       lastupdate INTEGER NOT NULL,
-                       dbversion INTEGER NOT NULL,
-                       maxresolution NOT NULL
-                   ); """
-
     #Create database
     dbCon = yta.connectDB(path)
-    #Set encoding
-    dbCon.execute("pragma encoding=UTF8")
-    #Create tables
-    dbCon.execute(tableCmd)
+    #Create table
+    yta.createChannelTable(dbCon)
     #Return database connection
     return dbCon
 # ########################################################################### #

@@ -9,8 +9,8 @@ import hashlib
 import requests
 
 # --------------------------------------------------------------------------- #
-__version__ = "1.2.0"
-__dbversion__ = 3
+__version__ = "1.3.0"
+__dbversion__ = 4
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -95,6 +95,79 @@ def loadImage(url):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
+def createChannelTable(dbCon):
+    '''Create channel table if it does not exist already
+
+    :param dbCon: Connection to the database
+    :type dbCon: sqlite3.Connection
+
+    :raises: :class:``sqlite3.Error: Unable to read from database
+    '''
+    cmd = """ CREATE TABLE IF NOT EXISTS channel (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                  name TEXT NOT NULL,
+                  url TEXT NOT NULL,
+                  playlist TEXT NOT NULL,
+                  language TEXT NOT NULL,
+                  description TEXT,
+                  location TEXT,
+                  joined TEXT,
+                  links TEXT,
+                  profile BLOB,
+                  profileformat TEXT,
+                  banner BLOB,
+                  bannerformat TEXT,
+                  videos INTEGER NOT NULL,
+                  lastupdate INTEGER NOT NULL,
+                  dbversion INTEGER NOT NULL,
+                  maxresolution NOT NULL
+              ); """
+    #Set encoding
+    dbCon.execute("pragma encoding=UTF8")
+    #Create tables
+    dbCon.execute(cmd)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def createVideoTable(dbCon):
+    '''Create video table if it does not exist already
+
+    :param dbCon: Connection to the database
+    :type dbCon: sqlite3.Connection
+
+    :raises: :class:``sqlite3.Error: Unable to read from database
+    '''
+    cmd = """ CREATE TABLE IF NOT EXISTS videos (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                  title TEXT NOT NULL,
+                  creator TEXT NOT NULL,
+                  date TEXT NOT NULL,
+                  timestamp INTEGER NOT NULL,
+                  description TEXT,
+                  youtubeID TEXT NOT NULL UNIQUE,
+                  subtitles TEXT,
+                  filename TEXT NOT NULL,
+                  checksum TEXT NOT NULL,
+                  thumb BLOB,
+                  thumbformat TEXT,
+                  duration INTEGER,
+                  tags TEXT,
+                  language TEXT NOT NULL,
+                  width INTEGER NOT NULL,
+                  height INTEGER NOT NULL,
+                  resolution TEXT NOT NULL,
+                  viewcount INTEGER,
+                  likecount INTEGER,
+                  dislikecount INTEGER,
+                  statisticsupdated INTEGER
+              ); """
+    #Set encoding
+    dbCon.execute("pragma encoding=UTF8")
+    #Create tables
+    dbCon.execute(cmd)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 def upgradeDatabase(dbPath):
     '''Check the database version and upgrade it if not newest
 
@@ -152,6 +225,17 @@ def upgradeDatabase(dbPath):
                 #Update db version
                 version = 3
                 db.execute("UPDATE channel SET dbversion = 3 WHERE id = 1")
+                dbCon.commit()
+            #Perform upgrade to version 4
+            if version < 4:
+                #Add video statistics
+                db.execute('ALTER TABLE videos ADD COLUMN viewcount INTEGER;')
+                db.execute('ALTER TABLE videos ADD COLUMN likecount INTEGER;')
+                db.execute('ALTER TABLE videos ADD COLUMN dislikecount INTEGER;')
+                db.execute('ALTER TABLE videos ADD COLUMN statisticsupdated INTEGER;')
+                #Update db version
+                version = 4
+                db.execute("UPDATE channel SET dbversion = 4 WHERE id = 1")
                 dbCon.commit()
         except sqlite3.Error as e:
             print("ERROR: Unable to upgrade database (\"{}\")".format(e))
