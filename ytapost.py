@@ -137,7 +137,7 @@ def processFile(name, subLang, db, check):
     duration = None
     tags = None
     try:
-        [timestamp, duration, tags, apiDesc] = ytameta.getMetadata(videoID)
+        [timestamp, duration, tags, apiDesc, viewCount, likeCount, dislikeCount, statisticsUpdated] = ytameta.getMetadata(videoID)
     except FileNotFoundError:
         print("WARNING: No Youtube data API key available, unable to load additional metadata")
     except OSError:
@@ -199,11 +199,11 @@ def processFile(name, subLang, db, check):
             thumbFormat = None
 
     #Save to database
-    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang)
+    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang, viewCount, likeCount, dislikeCount, statisticsUpdated)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang):
+def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, viewCount, likeCount, dislikeCount, statisticsUpdated):
     '''Write info to database
 
     :param db: Connection to the database
@@ -242,11 +242,23 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
     :type height: integer
     :param lang: Video language code
     :type lang: strings
+    :param viewCount: The view count
+    :type viewCount: integer
+    :param likeCount: The like count
+    :type likeCount: integer
+    :param dislikeCount: The dislike count
+    :type dislikeCount: integer
+    :param statisticsUpdated: Timestamp of the last statistics update, None if one of the other statistics items is None
+    :type statisticsUpdated: integer
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
     insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
     db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang))
+    #Update statistics if statisticsUpdated is not None
+    if statisticsUpdated:
+        update = "UPDATE videos SET viewcount = ?, likecount = ?, dislikecount = ?, statisticsupdated = ? WHERE youtubeID = ?"
+        db.execute(update, (viewCount, likeCount, dislikeCount, statisticsUpdated, youtubeID))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

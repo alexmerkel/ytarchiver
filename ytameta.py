@@ -7,6 +7,7 @@ import argparse
 import sqlite3
 from decimal import Decimal
 from datetime import datetime
+import time
 import re
 import requests
 import ytacommon as yta
@@ -42,7 +43,7 @@ def addMetadata(args):
         #Get video filepath
         youtubeID = item[0]
         try:
-            [timestamp, duration, tags, _] = getMetadata(youtubeID)
+            [timestamp, duration, tags, _, _, _, _, _] = getMetadata(youtubeID)
             db.execute("UPDATE videos SET timestamp = ?, duration = ?, tags = ? WHERE youtubeID = ?", (timestamp, duration, tags, youtubeID))
         except FileNotFoundError:
             print("WARNING: No Youtube data API key available, unable to load additional metadata")
@@ -65,7 +66,11 @@ def getMetadata(youtubeID):
     :raises: :class:``OSError: Unable to read API key from file
     :raises: :class:``requests.exceptions.HTTPError: Unable to get metadata
 
-    :returns: List with timestamp (int) at index 0, duration (int) at index 1, tags (string) at index 2, and description (string) at index 3
+    :returns: List with timestamp (int) at index 0, duration (int) at index 1,
+        tags (string) at index 2, description (string) at index 3,
+        viewCount (int or None) at index 4, likeCount (int or None) at index 5,
+        dislikeCount (int or None) at index 6, and statistics updated timestamp (int or None)
+        at index 7. The timestamp is None, if one or more of the other statistics items is None
     :rtype: list
     '''
     #Get API key
@@ -75,14 +80,14 @@ def getMetadata(youtubeID):
     if not apiKey:
         raise FileNotFoundError
     #Get metadata
-    url = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails%2Csnippet&id={}&key={}".format(youtubeID, apiKey)
+    url = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails%2Csnippet%2Cstatistics&id={}&key={}".format(youtubeID, apiKey)
     r = requests.get(url)
     r.raise_for_status()
     d = r.json()
     #Check if empty
     if not d["items"]:
         print("WARNING: No metadata available for " + youtubeID)
-        return [None, None, None, None]
+        return [None, None, None, None, None, None, None, None]
     #Convert update time to timestamp
     try:
         timestamp = int(datetime.timestamp(datetime.strptime(d["items"][0]["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%S.%f%z")))
@@ -97,8 +102,16 @@ def getMetadata(youtubeID):
         tags = '\n'.join([i.lower() for i in d["items"][0]["snippet"]["tags"]])
     else:
         tags = None
+    #Extract statistics
+    viewCount = toInt(d["items"][0]["statistics"]["viewCount"])
+    likeCount = toInt(d["items"][0]["statistics"]["likeCount"])
+    dislikeCount = toInt(d["items"][0]["statistics"]["dislikeCount"])
+    if isinstance(viewCount, int) and isinstance(likeCount, int) and isinstance(dislikeCount, int):
+        statisticsUpdated = int(time.time())
+    else:
+        statisticsUpdated = None
     #Return results
-    return [timestamp, duration, tags, description]
+    return [timestamp, duration, tags, description, viewCount, likeCount, dislikeCount, statisticsUpdated]
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -148,6 +161,14 @@ def convertDuration(dur):
     return int(el["weeks"] * 604800 + el["days"] * 86400 + el["hours"] * 3600 + el["minutes"] * 60 + el["seconds"])
 # ########################################################################### #
 
+# --------------------------------------------------------------------------- #
+def toInt(var):
+    '''Cast a variable to integer or return null if not possible'''
+    try:
+        return int(var)
+    except ValueError:
+        return None
+# ########################################################################### #
 
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":

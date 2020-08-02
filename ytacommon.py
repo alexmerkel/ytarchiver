@@ -159,7 +159,7 @@ def createVideoTable(dbCon):
                   viewcount INTEGER,
                   likecount INTEGER,
                   dislikecount INTEGER,
-                  statisticsupdated INTEGER
+                  statisticsupdated INTEGER NOT NULL
               ); """
     #Set encoding
     dbCon.execute("pragma encoding=UTF8")
@@ -232,7 +232,7 @@ def upgradeDatabase(dbPath):
                 db.execute('ALTER TABLE videos ADD COLUMN viewcount INTEGER;')
                 db.execute('ALTER TABLE videos ADD COLUMN likecount INTEGER;')
                 db.execute('ALTER TABLE videos ADD COLUMN dislikecount INTEGER;')
-                db.execute('ALTER TABLE videos ADD COLUMN statisticsupdated INTEGER;')
+                db.execute('ALTER TABLE videos ADD COLUMN statisticsupdated INTEGER NOT NULL DEFAULT 0;')
                 #Update db version
                 version = 4
                 db.execute("UPDATE channel SET dbversion = 4 WHERE id = 1")
