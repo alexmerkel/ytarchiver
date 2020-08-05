@@ -9,6 +9,7 @@ import time
 import sqlite3
 import ytacommon as yta
 import ytainfo
+import ytameta
 
 # --------------------------------------------------------------------------- #
 def archive(args, parsed=False):
@@ -27,6 +28,7 @@ def archive(args, parsed=False):
         parser.add_argument("-8k", "--8K", action="store_const", dest="quality", const="8k", help="Limit download resolution to 8K")
         parser.add_argument("-4k", "--4K", action="store_const", dest="quality", const="4k", help="Limit download resolution to 4K (default)")
         parser.add_argument("-hd", "--HD", action="store_const", dest="quality", const="hd", help="Limit download resolution to full HD")
+        parser.add_argument("-s", "--statistics", action="store_const", dest="statistics", const=True, default=False, help="Update the video statistics")
         parser.add_argument("-V", "--version", action="version", version='%(prog)s {}'.format(yta.__version__))
         parser.add_argument("DIR", help="The directory to work in")
         parser.add_argument("LANG", nargs='?', help="The video language (read from the database if not given)")
@@ -78,8 +80,9 @@ def archive(args, parsed=False):
                 parser.error("LANG and VIDEO must be specified if no database exisits.")
 
     #Update lastupdate field
+    updateTimestamp = int(time.time())
     db = yta.connectDB(dbPath)
-    db.execute("UPDATE channel SET lastupdate = ? WHERE id = 1", (int(time.time()), ))
+    db.execute("UPDATE channel SET lastupdate = ? WHERE id = 1", (updateTimestamp, ))
     yta.closeDB(db)
 
     #Start download
@@ -113,10 +116,19 @@ def archive(args, parsed=False):
         sys.stdout.write(line)
         p.wait()
 
-    #Update video number
+    #Open database
     db = yta.connectDB(dbPath)
+
+    #Update video number
     videos = db.execute("SELECT count(*) FROM videos;").fetchone()[0]
     db.execute("UPDATE channel SET videos = ? WHERE id = 1", (videos, ))
+
+    #Update statistics
+    if args.statistics:
+        print("Updating video statistics...")
+        ytameta.updateStatistics(db, updateTimestamp)
+
+    #Close database
     yta.closeDB(db)
 
     #Remove download archive file

@@ -74,11 +74,7 @@ def getMetadata(youtubeID):
     :rtype: list
     '''
     #Get API key
-    apiPath = os.path.join(os.path.expanduser('~'), ".ytarchiverapi")
-    with open(apiPath) as f:
-        apiKey = f.readline().strip()
-    if not apiKey:
-        raise FileNotFoundError
+    apiKey = getAPIKey()
     #Get metadata
     url = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails%2Csnippet%2Cstatistics&id={}&key={}".format(youtubeID, apiKey)
     r = requests.get(url)
@@ -127,6 +123,106 @@ def modifyDatabase(db):
         db.execute('ALTER TABLE videos ADD COLUMN tags TEXT;')
     except sqlite3.Error:
         pass
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize):
+    '''Update the video statistics in an archive database
+
+    :param db: Connection to the arcive database
+    :type db: sqlite3.Cursor
+    :param youngerTimestamp: Only videos with an update timestamp younger than this one will be updated (Default: max 64-bit int)
+    :type lastUpdateTimestamp: integer
+    :param count: Max number of videos to update (Default: max 64-bit int)
+    :type count: integer
+
+    :returns: Tuple with what is left of maxCount (int), whether the update was complete (bool)
+    :rtype: Tuple
+    '''
+    #Get API key
+    apiKey = getAPIKey()
+    #Loop through videos
+    requestLimit = 50
+    offset = 0
+    completed = False
+    items = []
+    while True:
+        #Check if max videos count reached zero
+        if count == 0:
+            #Check if videos missing
+            r = db.execute("SELECT id FROM videos WHERE statisticsupdated < ? ORDER BY id LIMIT 1 OFFSET ?;", (youngerTimestamp, offset))
+            if r.fetchone():
+                break
+            completed = True
+            break
+        #Update request limit if smaller than max count
+        if requestLimit > count:
+            requestLimit = count
+        #Select videos
+        r = db.execute("SELECT youtubeID FROM videos WHERE statisticsupdated < ? ORDER BY id LIMIT ? OFFSET ?;", (youngerTimestamp, requestLimit, offset))
+        videos = r.fetchall()
+        #If no more videos exit look
+        if not videos:
+            completed = True
+            break
+        #Get video ids
+        ids = [video[0] for video in videos]
+        #Update offset and count
+        offset += requestLimit
+        count -= requestLimit
+        #Get metadata
+        url = "https://www.googleapis.com/youtube/v3/videos?part=statistics&id={}&key={}".format(','.join(ids), apiKey)
+        r = requests.get(url)
+        r.raise_for_status()
+        print(url)
+        d = r.json()
+        if not d["items"]:
+            continue
+        #Add request time to items
+        requestTime = int(time.time())
+        for i in d["items"]:
+            i["requestTime"] = requestTime
+        #Add items to list
+        items += d["items"]
+
+    #Loop through items
+    for item in items:
+        try:
+            viewCount = toInt(item["statistics"]["viewCount"])
+        except KeyError:
+            viewCount = None
+        try:
+            likeCount = toInt(item["statistics"]["likeCount"])
+        except KeyError:
+            likeCount = 0
+        try:
+            dislikeCount = toInt(item["statistics"]["dislikeCount"])
+        except KeyError:
+            dislikeCount = 0
+        if isinstance(viewCount, int) and isinstance(likeCount, int) and isinstance(dislikeCount, int):
+            statisticsUpdated = item["requestTime"]
+        else:
+            statisticsUpdated = None
+        #Update database
+        if statisticsUpdated:
+            update = "UPDATE videos SET viewcount = ?, likecount = ?, dislikecount = ?, statisticsupdated = ? WHERE youtubeID = ?"
+            db.execute(update, (viewCount, likeCount, dislikeCount, statisticsUpdated, item["id"]))
+    #Return status
+    return (count, completed)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def getAPIKey():
+    '''Read the API key from ~/.ytarchiverapi
+
+    :raises: :class:``OSError: Unable to read API key from file
+    '''
+    apiPath = os.path.join(os.path.expanduser('~'), ".ytarchiverapi")
+    with open(apiPath) as f:
+        apiKey = f.readline().strip()
+    if not apiKey:
+        raise FileNotFoundError
+    return apiKey
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
