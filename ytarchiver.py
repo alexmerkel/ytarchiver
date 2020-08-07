@@ -148,6 +148,10 @@ def archiveAll(args):
     #Set all to false for susequent calls
     args.all = False
 
+    #Set statistics to false for susequent calls
+    updateStatistics = args.statistics
+    args.statistics = False
+
     #Get path
     path = os.path.normpath(os.path.abspath(args.DIR))
     #Get subdirs in path
@@ -187,6 +191,10 @@ def archiveAll(args):
     logFile = os.path.join(path, "log")
     with open(logFile, 'w+') as f:
         f.writelines(errorLog)
+
+    #Update statistics
+    if updateStatistics:
+        ytameta.updateAllStatistics(path)
 
     print("\nDONE!")
 # ########################################################################### #

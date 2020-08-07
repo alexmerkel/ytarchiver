@@ -13,6 +13,10 @@ import requests
 import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
+__statisticsdbversion__ = 1
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 def addMetadata(args):
     '''Add additional metadata to archive database
 
@@ -126,7 +130,7 @@ def modifyDatabase(db):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize):
+def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey=None):
     '''Update the video statistics in an archive database
 
     :param db: Connection to the arcive database
@@ -135,12 +139,15 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize):
     :type lastUpdateTimestamp: integer
     :param count: Max number of videos to update (Default: max 64-bit int)
     :type count: integer
+    :param apiKey: The API-Key for the Youtube-API (if not given, it will be read from file)
+    :type apiKey: string
 
     :returns: Tuple with what is left of maxCount (int), whether the update was complete (bool)
     :rtype: Tuple
     '''
     #Get API key
-    apiKey = getAPIKey()
+    if not apiKey:
+        apiKey = getAPIKey()
     #Loop through videos
     requestLimit = 50
     offset = 0
@@ -151,8 +158,10 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize):
         if count == 0:
             #Check if videos missing
             r = db.execute("SELECT id FROM videos WHERE statisticsupdated < ? ORDER BY id LIMIT 1 OFFSET ?;", (youngerTimestamp, offset))
+            #If videos missing exist loop without setting complete to true
             if r.fetchone():
                 break
+            #If no videos missing exist loop after setting complete to true
             completed = True
             break
         #Update request limit if smaller than max count
@@ -174,7 +183,6 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize):
         url = "https://www.googleapis.com/youtube/v3/videos?part=statistics&id={}&key={}".format(','.join(ids), apiKey)
         r = requests.get(url)
         r.raise_for_status()
-        print(url)
         d = r.json()
         if not d["items"]:
             continue
@@ -209,6 +217,171 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize):
             db.execute(update, (viewCount, likeCount, dislikeCount, statisticsUpdated, item["id"]))
     #Return status
     return (count, completed)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def updateAllStatistics(path):
+    '''Update the video statistics from all subdirs
+
+    :param path: The path of the parent directory
+    :type path: string
+    '''
+    #Print message
+    print("\nUPDATING VIDEO STATISTICS\n")
+    #Get subdirs in path
+    subdirs = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+    subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
+    if not subdirs:
+        print("ERROR: No subdirs with archive databases at \'{}\'".format(path))
+        return
+    #Connect to database
+    dbCon = connectUpdateCreateStatisticsDB(path)
+    db = dbCon.cursor()
+    #Get channels
+    r = db.execute("SELECT name,lastupdate,complete FROM channels;")
+    channels = {}
+    for item in r.fetchall():
+        channels[item[0]] = [item[1], item[2]]
+    #Get maxcount
+    maxcount = db.execute("SELECT maxcount FROM setup WHERE id = 1 LIMIT 1;").fetchone()[0]
+    #Get API key
+    apiKey = getAPIKey()
+    #Loop through subdirs, skip completed ones
+    skippedSubdirs = []
+    for subdir in subdirs:
+        #Check if maxcount was reached
+        if maxcount == 0:
+            break
+        #Get last update info
+        name = os.path.basename(os.path.normpath(subdir))
+        try:
+            lastupdate, complete = channels[name]
+        except KeyError:
+            lastupdate = sys.maxsize
+            complete = False
+            db.execute("INSERT INTO channels(name,lastupdate,complete) VALUES(?,?,?);", (name, lastupdate, complete))
+        #If completed, skip for now
+        if complete:
+            skippedSubdirs.append(subdir)
+            continue
+        #Update statistics
+        maxcount = updateSubdirStatistics(db, subdir, name, maxcount, lastupdate, complete, apiKey)
+
+    #Loop through skipped subdirs
+    for subdir in skippedSubdirs:
+        #Check if maxcount was reached
+        if maxcount == 0:
+            break
+        #Get last update info
+        name = os.path.basename(os.path.normpath(subdir))
+        lastupdate, complete = channels[name]
+        #Update statistics
+        maxcount = updateSubdirStatistics(db, subdir, name, maxcount, lastupdate, complete, apiKey)
+
+    #Close database
+    yta.closeDB(dbCon)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def updateSubdirStatistics(db, path, name, maxcount, lastupdate, complete, apiKey):
+    '''Update the statistics for one subdir
+
+    :param db: Connection to the statistics database
+    :type db: sqlite3.Connection
+    :param path: The path of the subdir
+    :type path: string
+    :param name: The channel/subdir name
+    :type name: string
+    :param maxcount: The max number of videos allowed to update
+    :type maxcount: integer
+    :param lastupdate: Timestamp of the last update
+    :type lastupdate: integer
+    :param complete: Whether the last update was complete
+    :type complete: boolean
+    :param apiKey: The API-Key for the Youtube-API
+    :type apiKey: string
+
+    :returns: Number of update counts left
+    :rtype: integer
+    '''
+    #Print status
+    print("Updating \"{}\"".format(name))
+    #Connect to channel database
+    channelDB = yta.connectDB(os.path.join(path, "archive.db"))
+    #First update the stats missed last time
+    updateTimestamp = int(time.time())
+    if not complete:
+        maxcount, complete = updateStatistics(channelDB, lastupdate, maxcount, apiKey)
+    #If counts left, update the other ones
+    if complete and maxcount > 0:
+        maxcount, complete = updateStatistics(channelDB, updateTimestamp, maxcount, apiKey)
+    #Close channel db
+    yta.closeDB(channelDB)
+    #Write new info to database
+    db.execute("UPDATE channels SET lastupdate = ?, complete = ? WHERE name = ?;", (updateTimestamp, complete, name))
+
+    return maxcount
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def connectUpdateCreateStatisticsDB(directory):
+    '''Connects to the statistics database used for updating the statistics of
+    all channels, updates it if necessary or creates it if it does not exist
+
+    :param path: The path of the database
+    :type path: string
+
+    :raises: :class:``sqlite3.Error: Unable to connect to database
+
+    :returns: Connection to the database
+    :rtype: sqlite3.Connection
+    '''
+    #Connect to database
+    dbCon = yta.connectDB(os.path.join(directory, "statistics.db"))
+    db = dbCon.cursor()
+    #Get database version
+    try:
+        r = db.execute("SELECT dbversion FROM setup ORDER BY id DESC LIMIT 1;")
+        version = r.fetchone()[0]
+        del r
+    except sqlite3.Error:
+        #No version field: new database
+        version = 0
+
+    if version < __statisticsdbversion__:
+        try:
+            #Perform initial setup
+            if version < 1:
+                #Set encoding
+                dbCon.execute("pragma encoding=UTF8")
+                #Create tables
+                cmd = """ CREATE TABLE setup (
+                              id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                              autoupdate BOOLEAN NOT NULL,
+                              lastupdate INTEGER NOT NULL,
+                              maxcount INTEGER NOT NULL,
+                              dbversion INTEGER NOT NULL
+                          ); """
+                dbCon.execute(cmd)
+                cmd = """ CREATE TABLE channels (
+                              id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                              name STRING UNIQUE NOT NULL,
+                              lastupdate INTEGER NOT NULL,
+                              complete BOOLEAN NOT NULL
+                          ); """
+                dbCon.execute(cmd)
+                #Set db version
+                version = 1
+                db.execute("INSERT INTO setup(autoupdate,lastupdate,maxcount,dbversion) VALUES(?,?,?,?)", (False, 0, 100000, version))
+                dbCon.commit()
+        except sqlite3.Error as e:
+            print("ERROR: Unable to upgrade database (\"{}\")".format(e))
+            dbCon.rollback()
+            yta.closeDB(dbCon)
+            sys.exit(1)
+
+    #Return connection to database
+    return dbCon
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
