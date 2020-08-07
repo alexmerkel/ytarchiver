@@ -192,9 +192,25 @@ def archiveAll(args):
     with open(logFile, 'w+') as f:
         f.writelines(errorLog)
 
+    #Check if statistics is set to autoupdate
+    autoUpdateStatistics = False
+    if not updateStatistics:
+        try:
+            statsDB = yta.connectDB(os.path.join(path, "statistics.db"))
+            r = statsDB.execute("SELECT autoupdate FROM setup ORDER BY id DESC LIMIT 1;")
+            autoUpdateStatistics = bool(r.fetchone()[0])
+            del r
+        except sqlite3.Error:
+            pass
+        finally:
+            try:
+                yta.closeDB(statsDB)
+            except sqlite3.Error:
+                pass
+
     #Update statistics
-    if updateStatistics:
-        ytameta.updateAllStatistics(path)
+    if updateStatistics or autoUpdateStatistics:
+        ytameta.updateAllStatistics(path, autoUpdateStatistics)
 
     print("\nDONE!")
 # ########################################################################### #

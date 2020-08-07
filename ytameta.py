@@ -10,6 +10,7 @@ from datetime import datetime
 import time
 import re
 import requests
+import pytz
 import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
@@ -220,14 +221,20 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateAllStatistics(path):
+def updateAllStatistics(path, automatic=False):
     '''Update the video statistics from all subdirs
 
     :param path: The path of the parent directory
     :type path: string
+    :param automatic: Whether the update was started automatically or from user input (Default: False)
+    :type automatic: boolean
     '''
+    updateStarted = int(time.time())
     #Print message
-    print("\nUPDATING VIDEO STATISTICS\n")
+    if automatic:
+        print("\nUPDATING VIDEO STATISTICS DUE TO DATABASE OPTION")
+    else:
+        print("\nUPDATING VIDEO STATISTICS")
     #Get subdirs in path
     subdirs = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
     subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
@@ -237,6 +244,13 @@ def updateAllStatistics(path):
     #Connect to database
     dbCon = connectUpdateCreateStatisticsDB(path)
     db = dbCon.cursor()
+    #Check if quota was reset since last update
+    lastupdate = db.execute("SELECT lastupdate FROM setup WHERE id = 1 LIMIT 1;").fetchone()[0]
+    if lastupdate > getResetTimestamp():
+        print("WARNING: Statistics update skipped because no quota reset since the last update")
+        yta.closeDB(dbCon)
+        return
+    print('')
     #Get channels
     r = db.execute("SELECT name,lastupdate,complete FROM channels;")
     channels = {}
@@ -278,6 +292,8 @@ def updateAllStatistics(path):
         #Update statistics
         maxcount = updateSubdirStatistics(db, subdir, name, maxcount, lastupdate, complete, apiKey)
 
+    #Write lastupdate to statistics database
+    db.execute("UPDATE setup SET lastupdate = ? WHERE id = 1", (updateStarted,))
     #Close database
     yta.closeDB(dbCon)
 # ########################################################################### #
@@ -396,6 +412,20 @@ def getAPIKey():
     if not apiKey:
         raise FileNotFoundError
     return apiKey
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def getResetTimestamp():
+    '''Return the timestamp of the last API quota reset (Midnight Pacific)
+
+    :returns: The timestamp
+    :rtype: integer
+    '''
+    tz = pytz.timezone('US/Pacific')
+    midnight = datetime.combine(datetime.today(), datetime.min.time())
+    midnightutc = tz.normalize(tz.localize(midnight)).astimezone(pytz.utc)
+    timestamp = datetime.timestamp(midnightutc)
+    return int(timestamp)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
