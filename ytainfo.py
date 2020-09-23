@@ -14,14 +14,14 @@ def addInfo(args):
     :param args: The command line arguments given by the user
     :type args: list
     '''
-    parser = argparse.ArgumentParser(prog="ytainfo", description="Add channel info to exising archive databases")
+    parser = argparse.ArgumentParser(prog="ytainfo", description="Add channel info to existing archive databases")
     parser.add_argument("DIR", help="The directory containing the archive database to work on")
     args = parser.parse_args()
 
     path = os.path.normpath(os.path.abspath(args.DIR))
     dbPath = os.path.join(path, "archive.db")
     if not os.path.isdir(path) or not os.path.isfile(dbPath):
-        parser.error("DIR must be a directory containg an archive database")
+        parser.error("DIR must be a directory containing an archive database")
 
     #Check if database needs upgrade
     yta.upgradeDatabase(dbPath)

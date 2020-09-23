@@ -172,7 +172,7 @@ def processFile(name, subLang, db, check):
         cmd = ["exiftool", "-config", config, "-api", "largefilesupport=1", "-overwrite_original", "-ec", "-Description={}".format(desc), newName]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         process.wait()
-    #Check if fix requried
+    #Check if fix required
     artist, title = ytafix.fixVideo(newName, videoID, fileArtist=artist)
     #Calculate checksum
     checksum = yta.calcSHA(newName)

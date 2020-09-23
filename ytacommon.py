@@ -188,7 +188,7 @@ def upgradeDatabase(dbPath):
         #No version field -> db version 1
         version = 1
 
-    #Check if not uptodate
+    #Check if not up to date
     if version < __dbversion__:
         print("Upgrading database")
         try:
@@ -249,7 +249,7 @@ def upgradeDatabase(dbPath):
 
 # --------------------------------------------------------------------------- #
 def readResolution(path):
-    '''Read the resoultion of a video file and return HD indicator
+    '''Read the resolution of a video file and return HD indicator
     (0 = SD, 1=720, 2=1080, 3=4K), a format string (e.g. "Full HD", "4K UHD")
     as well as width and height
 
@@ -259,7 +259,7 @@ def readResolution(path):
     :raises: :class:``FileNotFoundError: Unable to find file
 
     :returns: Tuple with HD indicator, format string, width, and height
-    :rtype: touple(int, string, int, int)
+    :rtype: tuple(int, string, int, int)
     '''
     #Read image width
     if not os.path.isfile(path):

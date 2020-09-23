@@ -77,7 +77,7 @@ def archive(args, parsed=False):
                 with open(os.path.join(path, "playlist"), 'r') as f:
                     args.VIDEO = f.readline().strip()
             except (IndexError, OSError):
-                parser.error("LANG and VIDEO must be specified if no database exisits.")
+                parser.error("LANG and VIDEO must be specified if no database exists.")
 
     #Update lastupdate field
     updateTimestamp = int(time.time())
@@ -145,10 +145,10 @@ def archiveAll(args):
     :param args: The command line arguments given by the user
     :type args: list
     '''
-    #Set all to false for susequent calls
+    #Set all to false for subsequent calls
     args.all = False
 
-    #Set statistics to false for susequent calls
+    #Set statistics to false for subsequent calls
     updateStatistics = args.statistics
     args.statistics = False
 

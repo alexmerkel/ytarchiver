@@ -26,7 +26,7 @@ def backup(args):
     #Validate path
     path = os.path.normpath(os.path.abspath(args.DIR))
     if not os.path.isdir(path):
-        parser.error("DIR must be a directory containg an archive database or contain subdirectories with database")
+        parser.error("DIR must be a directory containing an archive database or contain subdirectories with database")
 
     #Create backup dir if it doesn't already exist
     backupDir = os.path.join(path, "backups")

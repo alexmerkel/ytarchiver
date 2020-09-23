@@ -31,7 +31,7 @@ def check(args, parsed=False):
     path = os.path.normpath(os.path.abspath(args.DIR))
     dbPath = os.path.join(path, "archive.db")
     if not os.path.isdir(path) or not os.path.isfile(dbPath):
-        parser.error("DIR must be a directory containg an archive database")
+        parser.error("DIR must be a directory containing an archive database")
 
     #Read filenames and checksums from database
     files = []
@@ -98,7 +98,7 @@ def checkAll(args):
     :param args: The command line arguments given by the user
     :type args: list
     '''
-    #Set all to false for susequent calls
+    #Set all to false for subsequent calls
     args.all = False
 
     #Get path

@@ -33,7 +33,7 @@ def fix(args, parsed=False):
     path = os.path.normpath(os.path.abspath(args.DIR))
     dbPath = os.path.join(path, "archive.db")
     if not os.path.isdir(path) or not os.path.isfile(dbPath):
-        parser.error("DIR must be a directory containg an archive database")
+        parser.error("DIR must be a directory containing an archive database")
 
     #Check if database needs upgrade
     yta.upgradeDatabase(dbPath)
@@ -105,7 +105,7 @@ def fixVideo(path, videoID, correctArtist=None, fileArtist=None):
     :raises: :class:``requests.exceptions.HTTPError: Unable to get title
 
     :returns: Tuple with new metadata (artist, title)
-    :rtype: touple(string, string)
+    :rtype: tuple(string, string)
     '''
     #Get title
     r = requests.get("https://www.youtube.com/oembed?url=http://www.youtube.com/watch?v=" + videoID)
