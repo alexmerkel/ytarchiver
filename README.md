@@ -22,7 +22,7 @@ database along with additional information about the channel. When creating a ne
 an existing archive database using the `ytainfo.py` script.
 
 In order for the post-processing to work, the `ytapost.py` script must be added to the `$PATH` as `ytapost`. This can be achieved by symlinking the script to
-`/usr/local/bin/ytapst` for example.
+`/usr/local/bin/ytapost` for example.
 
 The script is extracting additional metadata, such as the time of publishing and the tags, from the Youtube Data API which requires an API key.
 The key can be obtained by visiting https://console.developers.google.com/apis/api/youtube.googleapis.com, creating a new project, enabling the

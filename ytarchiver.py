@@ -155,7 +155,7 @@ def archiveAll(args):
     #Get path
     path = os.path.normpath(os.path.abspath(args.DIR))
     #Get subdirs in path
-    subdirs = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+    subdirs = [os.path.join(path, name) for name in sorted(os.listdir(path), key=str.casefold) if os.path.isdir(os.path.join(path, name))]
     subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
     if not subdirs:
         print("ERROR: No subdirs with archive databases at \'{}\'".format(path))

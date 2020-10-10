@@ -4,13 +4,15 @@
 import os
 import sys
 import sqlite3
+import re
 import subprocess
 import hashlib
+from decimal import Decimal
 import requests
 
 # --------------------------------------------------------------------------- #
-__version__ = "1.3.0"
-__dbversion__ = 4
+__version__ = "1.4.0"
+__dbversion__ = 5
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -199,7 +201,7 @@ def upgradeDatabase(dbPath):
                 db.execute('ALTER TABLE channel ADD COLUMN dbversion INTEGER NOT NULL DEFAULT 1;')
                 #Update db version
                 version = 2
-                db.execute("UPDATE channel SET dbversion = 2 WHERE id = 1")
+                db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (version,))
                 dbCon.commit()
             #Perform upgrade to version 3
             if version < 3:
@@ -224,7 +226,7 @@ def upgradeDatabase(dbPath):
                 db.execute('ALTER TABLE channel ADD COLUMN maxresolution NOT NULL DEFAULT "default";')
                 #Update db version
                 version = 3
-                db.execute("UPDATE channel SET dbversion = 3 WHERE id = 1")
+                db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (version,))
                 dbCon.commit()
             #Perform upgrade to version 4
             if version < 4:
@@ -235,7 +237,22 @@ def upgradeDatabase(dbPath):
                 db.execute('ALTER TABLE videos ADD COLUMN statisticsupdated INTEGER NOT NULL DEFAULT 0;')
                 #Update db version
                 version = 4
-                db.execute("UPDATE channel SET dbversion = 4 WHERE id = 1")
+                db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (version,))
+                dbCon.commit()
+            #Perform upgrade to version 5
+            if version < 5:
+                #Add video chapters
+                db.execute('ALTER TABLE videos ADD COLUMN chapters TEXT;')
+                #Extract chapters from video descriptions
+                r = db.execute("SELECT id,description FROM videos;")
+                videos = r.fetchall()
+                for video in videos:
+                    chapters = extractChapters(video[1])
+                    if chapters:
+                        db.execute("UPDATE videos SET chapters = ? WHERE id = ?;", (chapters, video[0]))
+                #Update db version
+                version = 5
+                db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (version,))
                 dbCon.commit()
         except sqlite3.Error as e:
             print("ERROR: Unable to upgrade database (\"{}\")".format(e))
@@ -290,4 +307,107 @@ def readResolution(path):
         hd = 3
         formatString = "8K UHD"
     return hd, formatString, width, height
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def convertDuration(dur):
+    '''Convert ISO 8601 duration string to seconds
+    Simplified from isodate by Gerhard Weis (https://github.com/gweis/isodate)
+
+    :param dur: ISO 8601 duration string
+    :type dur: string
+    '''
+    reg = re.compile(
+        r"^(?P<sign>[+-])?"
+        r"P(?!\b)"
+        r"(?P<years>[0-9]+([,.][0-9]+)?Y)?"
+        r"(?P<months>[0-9]+([,.][0-9]+)?M)?"
+        r"(?P<weeks>[0-9]+([,.][0-9]+)?W)?"
+        r"(?P<days>[0-9]+([,.][0-9]+)?D)?"
+        r"((?P<separator>T)(?P<hours>[0-9]+([,.][0-9]+)?H)?"
+        r"(?P<minutes>[0-9]+([,.][0-9]+)?M)?"
+        r"(?P<seconds>[0-9]+([,.][0-9]+)?S)?)?$")
+    items = reg.match(dur)
+    el = items.groupdict()
+    for key, val in el.items():
+        if key not in ('separator', 'sign'):
+            if val is None:
+                el[key] = "0n"
+            if key in ('years', 'months'):
+                el[key] = Decimal(el[key][:-1].replace(',', '.'))
+            else:
+                el[key] = float(el[key][:-1].replace(',', '.'))
+
+    return int(el["weeks"] * 604800 + el["days"] * 86400 + el["hours"] * 3600 + el["minutes"] * 60 + el["seconds"])
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def extractChapters(desc):
+    '''Try to read chapter information from the description
+    If chapter data is found, it will be returned as a multiline string
+    with a line per chapter. The line format is
+    hh:mm:ss.sss Chapter Name
+
+    :param desc: The video description
+    :type desc: string
+    :returns: Chapters or None
+    :rtype: string
+    '''
+    #Check if video has a description
+    if not desc:
+        return None
+    #Setup
+    lines = desc.splitlines()
+    inChapters = False
+    r1 = re.compile("\\d{1,2}:\\d{1,2}")
+    r2 = re.compile("\\d{1,2}(:\\d{1,2})?:\\d{2}")
+    chapters = []
+    #Loop through lines
+    for line in lines:
+        line = line.strip()
+        #Look beginning of chapter list: 0:00, 00:00, 0:00:00 or 00:00:00
+        if not inChapters:
+            if not line.startswith('0'):
+                continue
+            if line.startswith('0:00') or line.startswith('00:00') or line.startswith('0:0:00'):
+                inChapters = True
+            else:
+                continue
+        #Look for end of chapter list
+        else:
+            if not r1.match(line):
+                inChapters = False
+                break
+        #Parse chapter info
+        ts = r2.search(line).group(0)
+        try:
+            name = line.split(maxsplit=1)[1]
+        except IndexError:
+            #No name found, not in a chapter
+            inChapters = False
+            continue
+        if name.startswith('- '):
+            name = name.split(maxsplit=1)[1]
+        #Normalize time code
+        i = ts.count(':')
+        if i < 2:
+            ts = "00:" + ts
+        if not ts[2] == ':':
+            ts = "0" + ts
+        if not ts[5] == ':':
+            ts = ts[0:3] + '0' + ts[3:]
+        ts = ts + ".000"
+        #Save chapter to list
+        chapters.append("{} {}".format(ts, name))
+    #Return chapter or none
+    return '\n'.join(chapters) if len(chapters) >= 3 else None
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def toInt(var):
+    '''Cast a variable to integer or return null if not possible'''
+    try:
+        return int(var)
+    except ValueError:
+        return None
 # ########################################################################### #

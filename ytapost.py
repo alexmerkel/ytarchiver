@@ -172,6 +172,8 @@ def processFile(name, subLang, db, check):
         cmd = ["exiftool", "-config", config, "-api", "largefilesupport=1", "-overwrite_original", "-ec", "-Description={}".format(desc), newName]
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         process.wait()
+    #Get chapter information
+    chapters = yta.extractChapters(desc)
     #Check if fix required
     artist, title = ytafix.fixVideo(newName, videoID, fileArtist=artist)
     #Calculate checksum
@@ -199,11 +201,11 @@ def processFile(name, subLang, db, check):
             thumbFormat = None
 
     #Save to database
-    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang, viewCount, likeCount, dislikeCount, statisticsUpdated)
+    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, viewCount, likeCount, dislikeCount, statisticsUpdated):
+def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters):
     '''Write info to database
 
     :param db: Connection to the database
@@ -250,11 +252,13 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
     :type dislikeCount: integer
     :param statisticsUpdated: Timestamp of the last statistics update, None if one of the other statistics items is None
     :type statisticsUpdated: integer
+    :param chapters: String containing one chapter per line in the format:  hh:mm:ss.sss Chapter Name
+    :type chapters: string
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
-    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang))
+    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language, chapters) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters))
     #Update statistics if statisticsUpdated is not None
     if statisticsUpdated:
         update = "UPDATE videos SET viewcount = ?, likecount = ?, dislikecount = ?, statisticsupdated = ? WHERE youtubeID = ?"

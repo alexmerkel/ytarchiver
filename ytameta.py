@@ -5,10 +5,8 @@ import os
 import sys
 import argparse
 import sqlite3
-from decimal import Decimal
 from datetime import datetime
 import time
-import re
 import requests
 import pytz
 import ytacommon as yta
@@ -97,20 +95,20 @@ def getMetadata(youtubeID):
     #Get description
     description = d["items"][0]["snippet"]["description"]
     #Convert duration to seconds
-    duration = convertDuration(d["items"][0]["contentDetails"]["duration"])
+    duration = yta.convertDuration(d["items"][0]["contentDetails"]["duration"])
     #Extract tags
     if "tags" in d["items"][0]["snippet"]:
         tags = '\n'.join([i.lower() for i in d["items"][0]["snippet"]["tags"]])
     else:
         tags = None
     #Extract statistics
-    viewCount = toInt(d["items"][0]["statistics"]["viewCount"])
+    viewCount = yta.toInt(d["items"][0]["statistics"]["viewCount"])
     try:
-        likeCount = toInt(d["items"][0]["statistics"]["likeCount"])
+        likeCount = yta.toInt(d["items"][0]["statistics"]["likeCount"])
     except KeyError:
         likeCount = None
     try:
-        dislikeCount = toInt(d["items"][0]["statistics"]["dislikeCount"])
+        dislikeCount = yta.toInt(d["items"][0]["statistics"]["dislikeCount"])
     except KeyError:
         dislikeCount = None
     if isinstance(viewCount, int):
@@ -203,15 +201,15 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
     #Loop through items
     for item in items:
         try:
-            viewCount = toInt(item["statistics"]["viewCount"])
+            viewCount = yta.toInt(item["statistics"]["viewCount"])
         except KeyError:
             viewCount = None
         try:
-            likeCount = toInt(item["statistics"]["likeCount"])
+            likeCount = yta.toInt(item["statistics"]["likeCount"])
         except KeyError:
             likeCount = 0
         try:
-            dislikeCount = toInt(item["statistics"]["dislikeCount"])
+            dislikeCount = yta.toInt(item["statistics"]["dislikeCount"])
         except KeyError:
             dislikeCount = 0
         if isinstance(viewCount, int) and isinstance(likeCount, int) and isinstance(dislikeCount, int):
@@ -432,47 +430,6 @@ def getResetTimestamp():
     midnightutc = tz.normalize(tz.localize(midnight)).astimezone(pytz.utc)
     timestamp = datetime.timestamp(midnightutc)
     return int(timestamp)
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def convertDuration(dur):
-    '''Convert ISO 8601 duration string to seconds
-    Simplified from isodate by Gerhard Weis (https://github.com/gweis/isodate)
-
-    :param dur: ISO 8601 duration string
-    :type dur: string
-    '''
-    reg = re.compile(
-        r"^(?P<sign>[+-])?"
-        r"P(?!\b)"
-        r"(?P<years>[0-9]+([,.][0-9]+)?Y)?"
-        r"(?P<months>[0-9]+([,.][0-9]+)?M)?"
-        r"(?P<weeks>[0-9]+([,.][0-9]+)?W)?"
-        r"(?P<days>[0-9]+([,.][0-9]+)?D)?"
-        r"((?P<separator>T)(?P<hours>[0-9]+([,.][0-9]+)?H)?"
-        r"(?P<minutes>[0-9]+([,.][0-9]+)?M)?"
-        r"(?P<seconds>[0-9]+([,.][0-9]+)?S)?)?$")
-    items = reg.match(dur)
-    el = items.groupdict()
-    for key, val in el.items():
-        if key not in ('separator', 'sign'):
-            if val is None:
-                el[key] = "0n"
-            if key in ('years', 'months'):
-                el[key] = Decimal(el[key][:-1].replace(',', '.'))
-            else:
-                el[key] = float(el[key][:-1].replace(',', '.'))
-
-    return int(el["weeks"] * 604800 + el["days"] * 86400 + el["hours"] * 3600 + el["minutes"] * 60 + el["seconds"])
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def toInt(var):
-    '''Cast a variable to integer or return null if not possible'''
-    try:
-        return int(var)
-    except ValueError:
-        return None
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
