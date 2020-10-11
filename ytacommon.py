@@ -11,7 +11,7 @@ from decimal import Decimal
 import requests
 
 # --------------------------------------------------------------------------- #
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 __dbversion__ = 5
 # ########################################################################### #
 
@@ -161,7 +161,8 @@ def createVideoTable(dbCon):
                   viewcount INTEGER,
                   likecount INTEGER,
                   dislikecount INTEGER,
-                  statisticsupdated INTEGER NOT NULL DEFAULT 0
+                  statisticsupdated INTEGER NOT NULL DEFAULT 0,
+                  chapters TEXT
               ); """
     #Set encoding
     dbCon.execute("pragma encoding=UTF8")
