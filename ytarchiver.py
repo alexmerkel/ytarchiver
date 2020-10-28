@@ -93,9 +93,9 @@ def archive(args, parsed=False):
     if args.quality == "hd":
         dlformat = "(bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     elif args.quality == "8k":
-        dlformat = "(bestvideo[width<8000][width>4000][ext=mp4]/bestvideo[width<8000][width>4000]/bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+        dlformat = "(bestvideo[width<8000][width>4000][ext=mp4]/bestvideo[width<8000][width>4000]/bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     else:
-        dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+        dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo)+(140/m4a/bestaudio)/best"
     #Check if archiving one video/playlist or using a batch file
     cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args.LANG, "--write-description", "--exec", "ytapost {} {{}} {}".format(args.check, args.LANG)]
     if args.file:
@@ -120,8 +120,11 @@ def archive(args, parsed=False):
     db = yta.connectDB(dbPath)
 
     #Update video number
-    videos = db.execute("SELECT count(*) FROM videos;").fetchone()[0]
-    db.execute("UPDATE channel SET videos = ? WHERE id = 1", (videos, ))
+    try:
+        videos = db.execute("SELECT count(*) FROM videos;").fetchone()[0]
+        db.execute("UPDATE channel SET videos = ? WHERE id = 1", (videos, ))
+    except sqlite3.Error:
+        pass
 
     #Update statistics
     if args.statistics:
