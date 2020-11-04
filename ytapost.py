@@ -24,6 +24,7 @@ def postprocess(args):
     files = []
     parser = argparse.ArgumentParser(prog="ytapost", description="Perform the postprocessing steps on a downloaded video file")
     parser.add_argument("-c", "--check", action="store_const", dest="check", const=True, default=False, help="Check file integrity")
+    parser.add_argument("-r", "--replace", action="store_const", dest="replace", const=True, default=False, help="Replace existing file")
     parser.add_argument("PATH", help="The file or the directory to work with")
     parser.add_argument("LANG", nargs='?', default="", help="The video language")
     args = parser.parse_args()
@@ -54,13 +55,13 @@ def postprocess(args):
         return
 
     for f in files:
-        processFile(f, args.LANG, db, args.check)
+        processFile(f, args.LANG, db, args.check, args.replace)
 
     yta.closeDB(dbCon)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def processFile(name, subLang, db, check):
+def processFile(name, subLang, db, check, replace):
     '''Process a file
 
     :param name: The video file name
@@ -71,6 +72,8 @@ def processFile(name, subLang, db, check):
     :type db: sqlite3.Cursor
     :param check: Whether to perform an integrity check and calc the checksum
     :type check: boolean
+    :param replace: Whether to replace a video already in the archive database
+    :type replace: boolean
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
@@ -147,12 +150,25 @@ def processFile(name, subLang, db, check):
     else:
         dateTime = r[0:4] + ':' + r[4:6] + ':' + r[6:8] + " 00:00:00+0"
         timestamp = datetime.timestamp(datetime.strptime(dateTime + "000", "%Y:%m:%d %H:%M:%S%z"))
+    #Replace existing video
+    if replace:
+        try:
+            dbfilename = db.execute("SELECT filename FROM videos WHERE youtubeID = ?;", (videoID,)).fetchone()[0]
+        except (sqlite3.Error, IndexError):
+            print("ERROR: Unable to replace video with ID \"{}\"".format(videoID))
+            return
+        dbfilename = os.path.join(os.path.dirname(name), dbfilename)
+        replaceFilepath = dbfilename + ".bak"
+        try:
+            os.rename(dbfilename, replaceFilepath)
+        except OSError:
+            print("WARNING: File to replace not found")
     #Add date to file name
     (oldName, ext) = os.path.splitext(oldName)
     fileName = "{} {}{}".format(date, oldName, ext)
     #Check if file name already exists
     i = 1
-    while checkFilename(fileName, db):
+    while checkFilename(fileName, db, replace, videoID):
         i += 1
         fileName = "{} {} {}{}".format(date, oldName, i, ext)
     #Rename file
@@ -199,17 +215,24 @@ def processFile(name, subLang, db, check):
             print("ERROR: Unable to download thumbnail for {}".format(videoID))
             thumbData = None
             thumbFormat = None
-
     #Save to database
-    saveToDB(db, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters)
+    saveToDB(db, replace, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters)
+    #Remove replaced file:
+    if replace:
+        try:
+            os.remove(replaceFilepath)
+        except OSError:
+            pass
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters):
+def saveToDB(db, replace, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters):
     '''Write info to database
 
     :param db: Connection to the database
     :type db: sqlite3.Cursor
+    :param replace: Whether to replace a video already in the archive database
+    :type replace: boolean
     :param name: The video title
     :type name: string
     :param artist: The creators name
@@ -257,8 +280,12 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
-    insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language, chapters) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters))
+    if replace:
+        update = "UPDATE videos SET title = ?, creator = ?, date = ?, timestamp = ?, description = ?, subtitles = ?, filename = ?, checksum = ?, thumb = ?, thumbformat = ?, duration = ?, tags = ?, resolution = ?, width = ?, height = ?, language = ?, chapters = ? WHERE youtubeID = ?"
+        db.execute(update, (name, artist, date, timestamp, desc, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, youtubeID))
+    else:
+        insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language, chapters) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters))
     #Update statistics if statisticsUpdated is not None
     if statisticsUpdated:
         update = "UPDATE videos SET viewcount = ?, likecount = ?, dislikecount = ?, statisticsupdated = ? WHERE youtubeID = ?"
@@ -266,19 +293,25 @@ def saveToDB(db, name, artist, date, timestamp, desc, youtubeID, subs, filename,
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def checkFilename(name, db):
+def checkFilename(name, db, replace, videoID):
     '''Check if the given filename is already in the database
 
     :param name: The filename to check
-    :type directory: string
+    :type name: string
     :param db: Connection to the metadata database
     :type db: sqlite3.Cursor
+    :param replace: Whether to replace a video already in the archive database
+    :type replace: boolean
+    :param videoID: The video ID to replace
+    :type videoID: string
 
     :returns: True if filename in database, else False
     :rtype: boolean
     '''
-    cmd = "SELECT id FROM videos WHERE filename = ?;"
+    cmd = "SELECT youtubeID FROM videos WHERE filename = ?;"
     r = db.execute(cmd, (name,)).fetchone()
+    if replace:
+        return bool(r) and r[0] != videoID
     return bool(r)
 # ########################################################################### #
 

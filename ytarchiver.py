@@ -29,6 +29,7 @@ def archive(args, parsed=False):
         parser.add_argument("-4k", "--4K", action="store_const", dest="quality", const="4k", help="Limit download resolution to 4K (default)")
         parser.add_argument("-hd", "--HD", action="store_const", dest="quality", const="hd", help="Limit download resolution to full HD")
         parser.add_argument("-s", "--statistics", action="store_const", dest="statistics", const=True, default=False, help="Update the video statistics")
+        parser.add_argument("-r", "--replace", action="store_const", dest="replace", const="-r", default="", help="Replace an existing video (a video ID has to be provided)")
         parser.add_argument("-V", "--version", action="version", version='%(prog)s {}'.format(yta.__version__))
         parser.add_argument("DIR", help="The directory to work in")
         parser.add_argument("LANG", nargs='?', help="The video language (read from the database if not given)")
@@ -83,21 +84,32 @@ def archive(args, parsed=False):
     updateTimestamp = int(time.time())
     db = yta.connectDB(dbPath)
     db.execute("UPDATE channel SET lastupdate = ? WHERE id = 1", (updateTimestamp, ))
+
+    #Replace existing video
+    if args.replace:
+        try:
+            youtubeID = db.execute("SELECT youtubeID FROM videos WHERE youtubeID = ?;", (args.VIDEO,)).fetchone()[0]
+            assert youtubeID
+        except (sqlite3.Error, TypeError, AssertionError):
+            print("ERROR: Unable to replace video with ID \"{}\" as it is not in the archive database".format(args.VIDEO))
+            return
+
+    #Close database
     yta.closeDB(db)
 
     #Start download
     dlfilePath = os.path.join(path, "downloaded")
     dbPath = os.path.join(path, "archive.db")
-    writeDownloadedFile(dbPath, dlfilePath)
+    writeDownloadedFile(dbPath, dlfilePath, args.replace, args.VIDEO)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
     if args.quality == "hd":
         dlformat = "(bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     elif args.quality == "8k":
         dlformat = "(bestvideo[width<8000][width>4000][ext=mp4]/bestvideo[width<8000][width>4000]/bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     else:
-        dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo)+(140/m4a/bestaudio)/best"
+        dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
     #Check if archiving one video/playlist or using a batch file
-    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args.LANG, "--write-description", "--exec", "ytapost {} {{}} {}".format(args.check, args.LANG)]
+    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args.LANG, "--write-description", "--exec", "ytapost {} {} {{}} {}".format(args.check, args.replace, args.LANG)]
     if args.file:
         cmd += ["--batch-file", args.file]
     else:
@@ -219,13 +231,17 @@ def archiveAll(args):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def writeDownloadedFile(dbPath, filePath):
+def writeDownloadedFile(dbPath, filePath, replace, videoID):
     '''Write file containing Youtube IDs of all videos already archived
 
     :param dbPath: Path of the archive database
     :type dbPath: string
     :param filePath: Path where the file containing all existing IDs should be written to
     :type filePath: string
+    :param replace: Whether to replace the existing video in the archive database
+    :type replace: boolean
+    :param videoID: The new video id
+    :type videoID: string
     '''
     #Check if db exists
     if not os.path.isfile(dbPath):
@@ -238,7 +254,8 @@ def writeDownloadedFile(dbPath, filePath):
             r = db.execute("SELECT youtubeID FROM videos;")
             for item in r.fetchall():
                 #Write IDs to file
-                f.write("youtube {}\n".format(item[0]))
+                if not (replace and videoID == item[0]):
+                    f.write("youtube {}\n".format(item[0]))
             yta.closeDB(db)
     except sqlite3.Error:
         return
