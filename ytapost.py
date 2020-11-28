@@ -139,6 +139,7 @@ def processFile(name, subLang, db, check, replace):
     timestamp = None
     duration = None
     tags = None
+    apiDesc = None
     try:
         [timestamp, duration, tags, apiDesc, viewCount, likeCount, dislikeCount, statisticsUpdated] = ytameta.getMetadata(videoID)
     except FileNotFoundError:
