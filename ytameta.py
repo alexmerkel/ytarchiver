@@ -5,6 +5,7 @@ import os
 import sys
 import argparse
 import sqlite3
+import random
 from datetime import datetime
 import time
 import requests
@@ -160,9 +161,9 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
     items = []
     while True:
         #Check if max videos count reached zero
-        if count == 0:
+        if count <= 0:
             #Check if videos missing
-            r = db.execute("SELECT id FROM videos WHERE statisticsupdated < ? ORDER BY id LIMIT 1 OFFSET ?;", (youngerTimestamp, offset))
+            r = db.execute("SELECT id FROM videos WHERE statisticsupdated < ? ORDER BY id LIMIT 1;", (youngerTimestamp))
             #If videos missing exist loop without setting complete to true
             if r.fetchone():
                 break
@@ -173,7 +174,7 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
         if requestLimit > count:
             requestLimit = count
         #Select videos
-        r = db.execute("SELECT youtubeID FROM videos WHERE statisticsupdated < ? ORDER BY id LIMIT ? OFFSET ?;", (youngerTimestamp, requestLimit, offset))
+        r = db.execute("SELECT youtubeID FROM videos ORDER BY id LIMIT ? OFFSET ?;", (requestLimit, offset))
         videos = r.fetchall()
         #If no more videos exit look
         if not videos:
@@ -286,14 +287,19 @@ def updateAllStatistics(path, automatic=False):
         maxcount = updateSubdirStatistics(db, subdir, name, maxcount, lastupdate, complete, apiKey)
 
     #Loop through skipped subdirs
+    i = 0
+    count = len(skippedSubdirs)
+    random.shuffle(skippedSubdirs)
     for subdir in skippedSubdirs:
         #Check if maxcount was reached
         if maxcount == 0:
             break
+        i += 1
         #Get last update info
         name = os.path.basename(os.path.normpath(subdir))
         lastupdate, complete = channels[name]
         #Update statistics
+        print("({}/{}) ".format(i, count), end='')
         maxcount = updateSubdirStatistics(db, subdir, name, maxcount, lastupdate, complete, apiKey)
 
     #Write lastupdate to statistics database
