@@ -103,10 +103,10 @@ def secToTime(sec):
     :returns: The duration as MM:SS or HH:MM:SS
     :rtype: string
     '''
-    h = sec // 3600
+    h = int(sec // 3600)
     sec = sec % 3600
-    m = sec // 60
-    sec = sec % 60
+    m = int(sec // 60)
+    sec = int(sec % 60)
     if h > 0:
         return "{:02d}:{:02d}:{:02d}".format(h, m, sec)
     return "{:02d}:{:02d}".format(m, sec)
