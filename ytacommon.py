@@ -12,7 +12,7 @@ import requests
 
 # --------------------------------------------------------------------------- #
 __version__ = "1.4.1"
-__dbversion__ = 5
+__dbversion__ = 6
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -106,7 +106,7 @@ def createChannelTable(dbCon):
     :raises: :class:``sqlite3.Error: Unable to read from database
     '''
     cmd = """ CREATE TABLE IF NOT EXISTS channel (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                  id INTEGER PRIMARY KEY UNIQUE NOT NULL,
                   name TEXT NOT NULL,
                   url TEXT NOT NULL,
                   playlist TEXT NOT NULL,
@@ -140,7 +140,7 @@ def createVideoTable(dbCon):
     :raises: :class:``sqlite3.Error: Unable to read from database
     '''
     cmd = """ CREATE TABLE IF NOT EXISTS videos (
-                  id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                  id INTEGER PRIMARY KEY UNIQUE NOT NULL,
                   title TEXT NOT NULL,
                   creator TEXT NOT NULL,
                   date TEXT NOT NULL,
@@ -255,6 +255,21 @@ def upgradeDatabase(dbPath):
                 version = 5
                 db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (version,))
                 dbCon.commit()
+            #Perform upgrade to version 6
+            if version < 6:
+                #Update format
+                r = db.execute("SELECT id,width,height FROM videos;")
+                videos = r.fetchall()
+                for video in videos:
+                    _, f = convertResolution(video[1], video[2])
+                    db.execute("UPDATE videos SET resolution = ? WHERE id = ?;", (f, video[0]))
+                #Add old titles and desctiption
+                db.execute('ALTER TABLE videos ADD COLUMN oldtitles TEXT;')
+                db.execute('ALTER TABLE videos ADD COLUMN olddescriptions TEXT;')
+                #Update db version
+                version = 6
+                db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (version,))
+                dbCon.commit()
         except sqlite3.Error as e:
             print("ERROR: Unable to upgrade database (\"{}\")".format(e))
             dbCon.rollback()
@@ -290,11 +305,32 @@ def readResolution(path):
         width = int(out[0].split(':', 1)[1].strip())
         height = int(out[1].split(':', 1)[1].strip())
     except IndexError:
-        raise FileNotFoundError
+        raise FileNotFoundError from IndexError
+    (hd, formatString) = convertResolution(width, height)
+    return hd, formatString, width, height
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def convertResolution(width, height):
+    '''Takes the width and height, returns HD indicator (0 = SD, 1=720, 2=1080, 3=4K)
+    and a format string (e.g. "Full HD", "4K UHD")
+
+    :param width: The video image width in pixels
+    :type width: integer
+    :param height: The video image height in pixels
+    :type height: integer
+
+    :returns: Tuple with HD indicator and format string
+    :rtype: tuple(int, string)
+    '''
     larger = width if width > height else height
+    smaller = height if width > height else width
     if larger < 1200:
         hd = 0
-        formatString = "SD"
+        if larger < 700 and smaller < 400:
+            formatString = "LD"
+        else:
+            formatString = "SD"
     elif 1200 <= larger < 1900:
         hd = 1
         formatString = "HD"
@@ -307,7 +343,7 @@ def readResolution(path):
     else:
         hd = 3
         formatString = "8K UHD"
-    return hd, formatString, width, height
+    return (hd, formatString)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

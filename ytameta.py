@@ -8,6 +8,7 @@ import sqlite3
 import random
 from datetime import datetime
 import time
+import json
 import requests
 import pytz
 import ytacommon as yta
@@ -174,19 +175,33 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
         if requestLimit > count:
             requestLimit = count
         #Select videos
-        r = db.execute("SELECT youtubeID FROM videos ORDER BY id LIMIT ? OFFSET ?;", (requestLimit, offset))
+        r = db.execute("SELECT id,youtubeID,title,description,oldtitles,olddescriptions FROM videos ORDER BY id LIMIT ? OFFSET ?;", (requestLimit, offset))
         videos = r.fetchall()
         #If no more videos exit look
         if not videos:
             completed = True
             break
         #Get video ids
-        ids = [video[0] for video in videos]
+        ids = [video[1] for video in videos]
+        #Create result dict and ids list
+        ids = []
+        vids = {}
+        for video in videos:
+            ids.append(video[1])
+            try:
+                oldtitles = json.loads(video[4])
+            except TypeError:
+                oldtitles = []
+            try:
+                olddescs = json.loads(video[5])
+            except TypeError:
+                olddescs = []
+            vids[video[1]] = [video[0], video[2], video[3], oldtitles, olddescs] #database ID, title, desc, oldtitles, olddescriptions
         #Update offset and count
         offset += requestLimit
         count -= requestLimit
         #Get metadata
-        url = "https://www.googleapis.com/youtube/v3/videos?part=statistics&id={}&key={}".format(','.join(ids), apiKey)
+        url = "https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id={}&key={}".format(','.join(ids), apiKey)
         r = requests.get(url)
         r.raise_for_status()
         d = r.json()
@@ -196,11 +211,18 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
         requestTime = int(time.time())
         for i in d["items"]:
             i["requestTime"] = requestTime
+            i["dbid"] = vids[i["id"]][0]
+            i["currenttitle"] = vids[i["id"]][1]
+            i["currentdesc"] = vids[i["id"]][2]
+            i["oldtitles"] = vids[i["id"]][3]
+            i["olddescs"] = vids[i["id"]][4]
         #Add items to list
         items += d["items"]
 
     #Loop through items
     for item in items:
+        cmd = []
+        i = []
         try:
             viewCount = yta.toInt(item["statistics"]["viewCount"])
         except KeyError:
@@ -214,13 +236,28 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
         except KeyError:
             dislikeCount = 0
         if isinstance(viewCount, int) and isinstance(likeCount, int) and isinstance(dislikeCount, int):
-            statisticsUpdated = item["requestTime"]
-        else:
-            statisticsUpdated = None
+            cmd.append("viewcount = ?, likecount = ?, dislikecount = ?, statisticsupdated = ?")
+            i += [viewCount, likeCount, dislikeCount, item["requestTime"]]
+        #Compare title and desc
+        try:
+            if item["snippet"]["title"] and item["snippet"]["title"] != item["currenttitle"]:
+                item["oldtitles"].append({"timestamp":item["requestTime"],"title":item["currenttitle"]})
+                cmd.append("title = ?, oldtitles = ?")
+                i += [item["snippet"]["title"], json.dumps(item["oldtitles"], ensure_ascii=False)]
+        except KeyError:
+            pass
+        try:
+            if item["snippet"]["description"] and item["snippet"]["description"] != item["currentdesc"]:
+                item["olddescs"].append({"timestamp":item["requestTime"],"description":item["currentdesc"]})
+                cmd.append("description = ?, olddescriptions = ?")
+                i += [item["snippet"]["description"], json.dumps(item["olddescs"], ensure_ascii=False)]
+        except KeyError:
+            pass
         #Update database
-        if statisticsUpdated:
-            update = "UPDATE videos SET viewcount = ?, likecount = ?, dislikecount = ?, statisticsupdated = ? WHERE youtubeID = ?"
-            db.execute(update, (viewCount, likeCount, dislikeCount, statisticsUpdated, item["id"]))
+        if cmd:
+            update = "UPDATE videos SET " + ", ".join(cmd) + " WHERE id = ?"
+            i.append(item["dbid"])
+            db.execute(update, tuple(i))
     #Return status
     return (count, completed)
 # ########################################################################### #
