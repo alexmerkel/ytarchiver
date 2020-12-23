@@ -38,33 +38,33 @@ def add(dbPath):
     '''
     #Create/connect database
     db = createOrConnectDB(dbPath)
-    print(yta.color.BOLD + "ADDING CHANNEL INFO" + yta.color.END)
+    print("ADDING CHANNEL INFO")
     #Get channel name
     while True:
-        q = input(yta.color.BOLD + "Channel name: " + yta.color.END)
+        q = input("Channel name: ")
         if q:
             break
     name = q.strip()
     #Get channel url
     while True:
-        q = input(yta.color.BOLD + "Channel url: " + yta.color.END)
+        q = input("Channel url: ")
         if q:
             break
     url = q.strip()
     #Get playlist name
     while True:
-        q = input(yta.color.BOLD + "Video playlist: " + yta.color.END)
+        q = input("Video playlist: ")
         if q:
             break
     playlist = q.strip()
     #Get channel language
     while True:
-        q = input(yta.color.BOLD + "Channel language code: " + yta.color.END)
+        q = input("Channel language code: ")
         if q:
             break
     language = q.strip()
     #Get channel Description
-    print(yta.color.BOLD + "Channel description (Press Ctrl-D [Ctrl-Z on WIN] directly to skip or after input to save):" + yta.color.END)
+    print("Channel description (Press Ctrl-D [Ctrl-Z on WIN] directly to skip or after input to save):")
     desc = []
     while True:
         try:
@@ -77,27 +77,27 @@ def add(dbPath):
     else:
         desc = None
     #Get join date
-    q = input(yta.color.BOLD + "Join date (YYYY-MM-DD) or enter to skip: " + yta.color.END)
+    q = input("Join date (YYYY-MM-DD) or enter to skip: ")
     if q:
         joined = q.strip()
     else:
         joined = None
     #Get location
-    q = input(yta.color.BOLD + "Location (or enter to skip): " + yta.color.END)
+    q = input("Location (or enter to skip): ")
     if q:
         location = q.strip()
     else:
         location = None
     #Get links
-    print(yta.color.BOLD + "Add links: Prettyname first, then the url. Enter to continue" + yta.color.END)
+    print("Add links: Prettyname first, then the url. Enter to continue")
     links = ""
     i = 0
     while True:
         i += 1
-        q1 = input("{}Prettyname no. {} (or enter to continue): {}".format(yta.color.BOLD, i, yta.color.END))
+        q1 = input("Prettyname no. {} (or enter to continue): ".format(i))
         if not q1:
             break
-        q2 = input("{}URL no. {}: {}".format(yta.color.BOLD, i, yta.color.END))
+        q2 = input("URL no. {}: ".format(i))
         if not q2:
             print("ERROR: URL must be specified")
             continue
@@ -106,7 +106,7 @@ def add(dbPath):
         links = None
     #Get profile picture
     while True:
-        q = input(yta.color.BOLD + "Profile picture URL (or enter to skip): " + yta.color.END)
+        q = input("Profile picture URL (or enter to skip): ")
         if not q:
             profile = None
             profileformat = None
@@ -119,7 +119,7 @@ def add(dbPath):
             continue
     #Get banner image
     while True:
-        q = input(yta.color.BOLD + "Banner image URL (or enter to skip): " + yta.color.END)
+        q = input("Banner image URL (or enter to skip): ")
         if not q:
             banner = None
             bannerformat = None
@@ -133,7 +133,7 @@ def add(dbPath):
 
     insert = "INSERT INTO channel(name, url, playlist, language, description, location, joined, links, profile, profileformat, banner, bannerformat, videos, lastupdate, dbversion, maxresolution) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
     db.execute(insert, (name, url, playlist, language, desc, location, joined, links, profile, profileformat, banner, bannerformat, 0, 0, yta.__dbversion__, "default"))
-    print(yta.color.BOLD + "FINISHED ADDING CHANNEL INFO" + yta.color.END)
+    print("FINISHED ADDING CHANNEL INFO")
 
     yta.closeDB(db)
 # ########################################################################### #
