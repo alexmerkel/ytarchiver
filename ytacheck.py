@@ -25,7 +25,7 @@ def check(args, parsed=False):
     #Run checker for all subdirectories
     if args.all:
         checkAll(args)
-        return
+        return []
 
     #Validate path
     path = os.path.normpath(os.path.abspath(args.DIR))
@@ -45,8 +45,7 @@ def check(args, parsed=False):
         for f in r.fetchall():
             files.append({"checksum" : f[2], "name" : f[1], "youtubeID" : f[0]})
     except sqlite3.Error as e:
-        print(e)
-        return
+        sys.exit("ERROR: Unable to read from database (Error: \"{}\")".format(e))
 
     for f in files:
         filepath = os.path.join(path, f["name"])
@@ -138,4 +137,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #
-

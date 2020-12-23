@@ -7,7 +7,7 @@ import sqlite3
 import re
 import subprocess
 import hashlib
-from decimal import Decimal
+from decimal import Decimal as decimal
 import requests
 
 # --------------------------------------------------------------------------- #
@@ -356,7 +356,7 @@ def convertDuration(dur):
             if val is None:
                 el[key] = "0n"
             if key in ('years', 'months'):
-                el[key] = Decimal(el[key][:-1].replace(',', '.'))
+                el[key] = decimal(el[key][:-1].replace(',', '.'))
             else:
                 el[key] = float(el[key][:-1].replace(',', '.'))
 

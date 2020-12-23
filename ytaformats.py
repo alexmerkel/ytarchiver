@@ -5,7 +5,6 @@ import sys
 import argparse
 import youtube_dl
 
-
 # --------------------------------------------------------------------------- #
 def main(args):
     '''Main function, print info about the download formats used
