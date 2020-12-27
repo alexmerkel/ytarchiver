@@ -7,6 +7,8 @@ import subprocess
 import argparse
 import shutil
 import sqlite3
+import json
+import time
 from datetime import datetime, timezone
 from pycountry import languages
 import ytacommon as yta
@@ -160,8 +162,7 @@ def processFile(name, subLang, db, check, replace):
         try:
             dbfilename = db.execute("SELECT filename FROM videos WHERE youtubeID = ?;", (videoID,)).fetchone()[0]
         except (sqlite3.Error, IndexError):
-            print("ERROR: Unable to replace video with ID \"{}\"".format(videoID))
-            return
+            sys.exit("ERROR: Unable to replace video with ID \"{}\"".format(videoID))
         dbfilename = os.path.join(os.path.dirname(name), dbfilename)
         replaceFilepath = dbfilename + ".bak"
         try:
@@ -286,8 +287,44 @@ def saveToDB(db, replace, name, artist, date, timestamp, desc, youtubeID, subs, 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
     if replace:
-        update = "UPDATE videos SET title = ?, creator = ?, date = ?, timestamp = ?, description = ?, subtitles = ?, filename = ?, checksum = ?, thumb = ?, thumbformat = ?, duration = ?, tags = ?, resolution = ?, width = ?, height = ?, language = ?, chapters = ? WHERE youtubeID = ?"
-        db.execute(update, (name, artist, date, timestamp, desc, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, youtubeID))
+        #Get current and old title + description
+        r = db.execute("SELECT id,title,description,oldtitles,olddescriptions FROM videos WHERE youtubeID = ?;", (youtubeID,))
+        info = r.fetchone()
+        del r
+        dbID = info[0]
+        currentTitle = info[1]
+        currentDesc = info[2]
+        #Check if title and desc are unchanged
+        if currentTitle == name and currentDesc == desc:
+            #Unchanged, just update the rest
+            update = "UPDATE videos SET creator = ?, date = ?, timestamp = ?, subtitles = ?, filename = ?, checksum = ?, thumb = ?, thumbformat = ?, duration = ?, tags = ?, resolution = ?, width = ?, height = ?, language = ?, chapters = ? WHERE id = ?"
+            db.execute(update, (artist, date, timestamp, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, dbID))
+        else:
+            #Changed, write old title + desc to json, update everything
+            t = int(time.time())
+            #Title changed
+            if currentTitle != name:
+                try:
+                    oldtitles = json.loads(info[3])
+                except TypeError:
+                    oldtitles = []
+                oldtitles.append({"timestamp":t,"title":currentTitle})
+                oldtitles = json.dumps(oldtitles, ensure_ascii=False)
+            else:
+                oldtitles = info[3]
+            #Desc changed
+            if currentDesc != desc:
+                try:
+                    olddescs = json.loads(info[4])
+                except TypeError:
+                    olddescs = []
+                olddescs.append({"timestamp":t,"description":currentDesc})
+                olddescs = json.dumps(olddescs, ensure_ascii=False)
+            else:
+                olddescs = info[4]
+            #Update db
+            update = "UPDATE videos SET title = ?, creator = ?, date = ?, timestamp = ?, description = ?, subtitles = ?, filename = ?, checksum = ?, thumb = ?, thumbformat = ?, duration = ?, tags = ?, resolution = ?, width = ?, height = ?, language = ?, chapters = ? , oldtitles = ?, olddescriptions = ? WHERE id = ?"
+            db.execute(update, (name, artist, date, timestamp, desc, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, oldtitles, olddescs, dbID))
     else:
         insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language, chapters) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
         db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters))
