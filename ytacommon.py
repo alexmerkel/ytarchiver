@@ -16,6 +16,25 @@ __dbversion__ = 6
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
+def getFormatString(selector="4k"):
+    '''Returns the youtube-dl format string for the selected quality
+
+    :param selector: The quality selector, "hd", "4k" (default), or "8k"
+    :type selector: string, optional
+
+    :returns: The format string for youtube-dl
+    :rtype: string
+    '''
+    if selector == "hd":
+        dlformat = "(bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+    elif selector == "8k":
+        dlformat = "(bestvideo[width<8000][width>4000][ext=mp4]/bestvideo[width<8000][width>4000]/bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+    else:
+        dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+    return dlformat
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 def connectDB(path):
     '''Connect to a database
 
@@ -68,7 +87,7 @@ def loadImage(url):
     '''Download image at url
 
     :param url: The image url
-    :type path: string
+    :type url: string
 
     :raises: :class:``requests.exceptions.HTTPError: Unable to load image from URL
 

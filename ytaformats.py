@@ -4,6 +4,7 @@
 import sys
 import argparse
 import youtube_dl
+import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
 def main(args):
@@ -22,12 +23,7 @@ def main(args):
     args = parser.parse_args()
 
     #Set format string
-    if args.quality == "hd":
-        dlformat = "(bestvideo[width=1920][ext=mp4]/bestvideo[width=1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
-    elif args.quality == "8k":
-        dlformat = "(bestvideo[width<8000][width>4000][ext=mp4]/bestvideo[width<8000][width>4000]/bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
-    else:
-        dlformat = "(bestvideo[width<4000][width>1920][ext=mp4]/bestvideo[width<4000][width>1920]/bestvideo[width>1920][ext=mp4]/bestvideo[width>1920]/bestvideo[ext=mp4]/bestvideo)+(140/m4a/bestaudio)/best"
+    dlformat = yta.getFormatString(args.quality)
 
     #Set options
     ydlOpts = {"call_home": False, "quiet": True, "format": dlformat, "ignoreerrors": True, "no_warnings": True}
