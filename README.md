@@ -21,9 +21,6 @@ the subtitle language code (e.g. `en` for English, `de` for German, etc). Altern
 database along with additional information about the channel. When creating a new archive, a prompt for the channel info appears. They can also be added to
 an existing archive database using the `ytainfo.py` script.
 
-In order for the post-processing to work, the `ytapost.py` script must be added to the `$PATH` as `ytapost`. This can be achieved by symlinking the script to
-`/usr/local/bin/ytapost` for example.
-
 The script is extracting additional metadata, such as the time of publishing and the tags, from the Youtube Data API which requires an API key.
 The key can be obtained by visiting https://console.developers.google.com/apis/api/youtube.googleapis.com, creating a new project, enabling the
 YouTube Data API, and creating a new API Key credential. `ytarchiver` is looking for the API key in a file called `.ytarchiverapi` in the users home folder.
@@ -58,11 +55,14 @@ Requirements
 ------------
 
 *   [python3](https://www.python.org/)
-*   [youtube-dl](https://github.com/ytdl-org/youtube-dl)
 *   [ffmpeg](https://www.ffmpeg.org/)
 *   [exiftool](https://www.sno.phy.queensu.ca/~phil/exiftool/)
+*   [AtomicParsley](http://atomicparsley.sourceforge.net/)
+
+*   [youtube_dl](https://pypi.org/project/youtube_dl/)
 *   [requests](https://pypi.org/project/requests/)
 *   [pycountry](https://pypi.org/project/pycountry/)
+*   [pytz](https://pypi.org/project/pytz/)
 
 License
 -------

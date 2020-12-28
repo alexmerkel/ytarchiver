@@ -3,10 +3,13 @@
 
 import os
 import sys
-import subprocess
+import re
 import argparse
 import time
 import sqlite3
+import logging
+import youtube_dl
+from youtube_dl.utils import read_batch_urls as readBatchURLs
 import ytacommon as yta
 import ytainfo
 import ytameta
@@ -97,31 +100,39 @@ def archive(args, parsed=False):
     #Close database
     yta.closeDB(db)
 
-    #Start download
+    #Prepare download
     dlfilePath = os.path.join(path, "downloaded")
     dbPath = os.path.join(path, "archive.db")
     writeDownloadedFile(dbPath, dlfilePath, args.replace, args.VIDEO)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
     dlformat = yta.getFormatString(args.quality)
-    #Check if archiving one video/playlist or using a batch file
-    cmd = ["youtube-dl", "--ignore-errors", "--download-archive", dlfilePath, "-f", dlformat, "--recode-video", "mp4", "--add-metadata", "-o", dlpath, "--embed-thumbnail", "--write-sub", "--sub-lang", args.LANG, "--write-description", "--exec", "ytapost {} {} {{}} {}".format(args.check, args.replace, args.LANG)]
-    if args.file:
-        cmd += ["--batch-file", args.file]
-    else:
-        cmd.append(args.VIDEO)
+    ytapostPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ytapost.py")
+    ytapost = "{} {} {} {{}} {}".format(ytapostPath, args.check, args.replace, args.LANG)
 
-    #Write log
+    #Set options
+    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False}
+    ytdlOpts["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}, {"key": "FFmpegMetadata"}, {"key": "EmbedThumbnail","already_have_thumbnail": False}, {"key": "ExecAfterDownload", "exec_cmd": ytapost}]
+
+    #Check if archiving one video/playlist or using a batch file
+    if args.file:
+        with open(args.file, 'r', encoding="utf-8") as f:
+            url = readBatchURLs(f)
+    else:
+        url = [args.VIDEO]
+
+    #Prepare log
     logFile = os.path.join(path, "log")
-    with open(logFile, 'w+') as f:
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        while p.poll() is None:
-            line = p.stdout.readline().decode("utf-8")
-            sys.stdout.write(line)
-            f.write(line)
-        line = p.stdout.read().decode("utf-8")
-        f.write(line)
-        sys.stdout.write(line)
-        p.wait()
+    ytdlLogger = logging.getLogger("ytdl")
+    ytdlLogger.setLevel("DEBUG")
+    ytdlLogger.addHandler(logging.StreamHandler(sys.stdout))
+    ytdlLoggerFileHandler = logging.FileHandler(logFile, 'w+')
+    ytdlLoggerFileHandler.setLevel("INFO")
+    ytdlLogger.addHandler(ytdlLoggerFileHandler)
+    #ytdlOpts["logger"] = ytdlLogger
+    #Download
+    with DoubleLogger(logFile):
+        with youtube_dl.YoutubeDL(ytdlOpts) as ytdl:
+            ytdl.download(url)
 
     #Open database
     db = yta.connectDB(dbPath)
@@ -174,10 +185,6 @@ def archiveAll(args):
     print("ARCHIVING ALL CHANNELS IN \'{}\'\n".format(path))
     #Initiate error log
     errorLog = ""
-    #Empty cache
-    cmd = ["youtube-dl", "--rm-cache-dir"]
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    process.wait()
     #Loop through all subdirs
     for subdir in subdirs:
         name = os.path.basename(os.path.normpath(subdir))
@@ -273,6 +280,58 @@ def readInfoFromDB(dbPath):
     item = r.fetchone()
     yta.closeDB(db)
     return [item[0], item[1]]
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+class DoubleLogger:
+    '''Double logger context
+    Get messages to stdout and stderr, print them to stdout and write them to a log
+    '''
+    def __init__(self, log):
+        '''Init
+
+        :param log: Location of the new log file
+        :type log: path-like
+        '''
+        self.oldout = sys.stdout
+        self.olderr = sys.stderr
+        self.term = sys.stdout
+        self.log = open(log, 'w+')
+        self.filter = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+    def __enter__(self):
+        '''Enter context, start logging to stdout and log file'''
+        sys.stdout = self
+        sys.stderr = self
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        '''Exit context, restore stdout and stderr'''
+        sys.stdout = self.oldout
+        sys.stderr = self.olderr
+        self.close()
+
+    def write(self, msg):
+        '''Write a message to stdout and the log file
+
+        :param msg: The message
+        :type msg: string
+        '''
+        self.term.write(msg)
+        self.log.write(self.filter.sub('', msg))
+
+    def flush(self):
+        '''Flush the log file'''
+        self.log.flush()
+
+    def close(self):
+        '''Close the log file'''
+        self.log.close()
+
+    @staticmethod
+    def isatty():
+        '''Answer True to "Is a TTY?" question'''
+        return True
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
