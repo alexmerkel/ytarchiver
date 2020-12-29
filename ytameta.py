@@ -137,17 +137,19 @@ def modifyDatabase(db):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey=None):
+def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, count=sys.maxsize, apiKey=None):
     '''Update the video statistics in an archive database
 
     :param db: Connection to the archive database
     :type db: sqlite3.Cursor
     :param youngerTimestamp: Only videos with an update timestamp younger than this one will be updated (Default: max 64-bit int)
-    :type lastUpdateTimestamp: integer
+    :type lastUpdateTimestamp: integer, optional
+    :param checkCaptions: Whether to check if captions were added since archiving the video (Default: False)
+    :type checkCaptions: boolean, optional
     :param count: Max number of videos to update (Default: max 64-bit int)
-    :type count: integer
+    :type count: integer, optional
     :param apiKey: The API-Key for the Youtube-API (if not given, it will be read from file)
-    :type apiKey: string
+    :type apiKey: string, optional
 
     :returns: Tuple with what is left of maxCount (int), whether the update was complete (bool)
     :rtype: Tuple
@@ -175,7 +177,7 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
         if requestLimit > count:
             requestLimit = count
         #Select videos
-        r = db.execute("SELECT id,youtubeID,title,description,oldtitles,olddescriptions FROM videos ORDER BY id LIMIT ? OFFSET ?;", (requestLimit, offset))
+        r = db.execute("SELECT id,youtubeID,title,description,subtitles,oldtitles,olddescriptions FROM videos ORDER BY id LIMIT ? OFFSET ?;", (requestLimit, offset))
         videos = r.fetchall()
         #If no more videos exit look
         if not videos:
@@ -189,19 +191,23 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
         for video in videos:
             ids.append(video[1])
             try:
-                oldtitles = json.loads(video[4])
+                oldtitles = json.loads(video[5])
             except TypeError:
                 oldtitles = []
             try:
-                olddescs = json.loads(video[5])
+                olddescs = json.loads(video[6])
             except TypeError:
                 olddescs = []
-            vids[video[1]] = [video[0], video[2], video[3], oldtitles, olddescs] #database ID, title, desc, oldtitles, olddescriptions
+            try:
+                subtitles = len(video[4]) > 0
+            except TypeError:
+                subtitles = False
+            vids[video[1]] = [video[0], video[2], video[3], subtitles, oldtitles, olddescs] #database ID, title, desc, subtitles, oldtitles, olddescriptions
         #Update offset and count
         offset += requestLimit
         count -= requestLimit
         #Get metadata
-        url = "https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id={}&key={}".format(','.join(ids), apiKey)
+        url = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails%2Csnippet%2Cstatistics&id={}&key={}".format(','.join(ids), apiKey)
         r = requests.get(url)
         r.raise_for_status()
         d = r.json()
@@ -214,8 +220,9 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
             i["dbid"] = vids[i["id"]][0]
             i["currenttitle"] = vids[i["id"]][1]
             i["currentdesc"] = vids[i["id"]][2]
-            i["oldtitles"] = vids[i["id"]][3]
-            i["olddescs"] = vids[i["id"]][4]
+            i["subtitles"] = vids[i["id"]][3]
+            i["oldtitles"] = vids[i["id"]][4]
+            i["olddescs"] = vids[i["id"]][5]
         #Add items to list
         items += d["items"]
 
@@ -253,6 +260,13 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
                 i += [item["snippet"]["description"], json.dumps(item["olddescs"], ensure_ascii=False)]
         except KeyError:
             pass
+        #Check if captions were added
+        captions = item["contentDetails"]["caption"].lower() == "true"
+        if checkCaptions and captions != item["subtitles"]:
+            if captions:
+                print("INFO: Video [{}] \"{}\" had captions added since archiving".format(item["id"], item["snippet"]["title"]))
+            else:
+                print("INFO: Video [{}] \"{}\" had captions removed since archiving".format(item["id"], item["snippet"]["title"]))
         #Update database
         if cmd:
             update = "UPDATE videos SET " + ", ".join(cmd) + " WHERE id = ?"
@@ -263,13 +277,15 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, count=sys.maxsize, apiKey
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateAllStatistics(path, automatic=False):
+def updateAllStatistics(path, automatic=False, captions=False):
     '''Update the video statistics from all subdirs
 
     :param path: The path of the parent directory
     :type path: string
     :param automatic: Whether the update was started automatically or from user input (Default: False)
     :type automatic: boolean
+    :param captions: Whether to check if captions were added since archiving the video (Default: False)
+    :type captions: boolean, optional
     '''
     updateStarted = int(time.time())
     #Print message
@@ -321,7 +337,7 @@ def updateAllStatistics(path, automatic=False):
             skippedSubdirs.append(subdir)
             continue
         #Update statistics
-        maxcount = updateSubdirStatistics(db, subdir, name, maxcount, lastupdate, complete, apiKey)
+        maxcount = updateSubdirStatistics(db, subdir, name, captions, maxcount, lastupdate, complete, apiKey)
 
     #Loop through skipped subdirs
     i = 0
@@ -337,7 +353,7 @@ def updateAllStatistics(path, automatic=False):
         lastupdate, complete = channels[name]
         #Update statistics
         print("({}/{}) ".format(i, count), end='')
-        maxcount = updateSubdirStatistics(db, subdir, name, maxcount, lastupdate, complete, apiKey)
+        maxcount = updateSubdirStatistics(db, subdir, name, captions, maxcount, lastupdate, complete, apiKey)
 
     #Write lastupdate to statistics database
     db.execute("UPDATE setup SET lastupdate = ? WHERE id = 1", (updateStarted,))
@@ -346,7 +362,7 @@ def updateAllStatistics(path, automatic=False):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateSubdirStatistics(db, path, name, maxcount, lastupdate, complete, apiKey):
+def updateSubdirStatistics(db, path, name, captions, maxcount, lastupdate, complete, apiKey):
     '''Update the statistics for one subdir
 
     :param db: Connection to the statistics database
@@ -355,6 +371,8 @@ def updateSubdirStatistics(db, path, name, maxcount, lastupdate, complete, apiKe
     :type path: string
     :param name: The channel/subdir name
     :type name: string
+    :param captions: Whether to check if captions were added since archiving the video (Default: False)
+    :type captions: boolean
     :param maxcount: The max number of videos allowed to update
     :type maxcount: integer
     :param lastupdate: Timestamp of the last update
@@ -374,10 +392,10 @@ def updateSubdirStatistics(db, path, name, maxcount, lastupdate, complete, apiKe
     #First update the stats missed last time
     updateTimestamp = int(time.time())
     if not complete:
-        maxcount, complete = updateStatistics(channelDB, lastupdate, maxcount, apiKey)
+        maxcount, complete = updateStatistics(channelDB, lastupdate, captions, maxcount, apiKey)
     #If counts left, update the other ones
     if complete and maxcount > 0:
-        maxcount, complete = updateStatistics(channelDB, updateTimestamp, maxcount, apiKey)
+        maxcount, complete = updateStatistics(channelDB, updateTimestamp, captions, maxcount, apiKey)
     #Close channel db
     yta.closeDB(channelDB)
     #Write new info to database

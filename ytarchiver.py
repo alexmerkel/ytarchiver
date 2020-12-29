@@ -26,7 +26,9 @@ def archive(args, parsed=False):
         parser = argparse.ArgumentParser(prog="ytarchiver", description="Download and archive Youtube videos or playlists")
         parser.add_argument("-a", "--all", action="store_const", dest="all", const=True, default=False, help="Run archiver for all subdirectories with archive databases. In this mode, LANG and VIDEO will always be read from the databases")
         parser.add_argument("-c", "--check", action="store_const", dest="check", const="-c", default="", help="Check each file after download")
-        parser.add_argument("-s", "--statistics", action="store_const", dest="statistics", const=True, default=False, help="Update the video statistics")
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument("-s", "--statistics", action="store_const", dest="statistics", const=True, default=False, help="Update the video statistics")
+        group.add_argument("-u", "--captions", action="store_const", dest="captions", const=True, default=False, help="List videos where captions were added since archiving (forces -s)")
         parser.add_argument("-r", "--replace", action="store_const", dest="replace", const="-r", default="", help="Replace an existing video (a video ID has to be provided)")
         group = parser.add_mutually_exclusive_group()
         group.add_argument("-8k", "--8K", action="store_const", dest="quality", const="8k", help="Limit download resolution to 8K")
@@ -138,9 +140,9 @@ def archive(args, parsed=False):
         pass
 
     #Update statistics
-    if args.statistics:
+    if args.statistics or args.captions:
         print("Updating video statistics...")
-        ytameta.updateStatistics(db, updateTimestamp)
+        ytameta.updateStatistics(db, updateTimestamp, args.captions)
 
     #Close database
     yta.closeDB(db)
@@ -164,7 +166,9 @@ def archiveAll(args):
 
     #Set statistics to false for subsequent calls
     updateStatistics = args.statistics
+    updateCaptions = args.captions
     args.statistics = False
+    args.captions = False
 
     #Get path
     path = os.path.normpath(os.path.abspath(args.DIR))
@@ -204,7 +208,7 @@ def archiveAll(args):
 
     #Check if statistics is set to autoupdate
     autoUpdateStatistics = False
-    if not updateStatistics:
+    if not updateStatistics or updateCaptions:
         try:
             statsDB = yta.connectDB(os.path.join(path, "statistics.db"))
             r = statsDB.execute("SELECT autoupdate FROM setup ORDER BY id DESC LIMIT 1;")
@@ -219,8 +223,8 @@ def archiveAll(args):
                 pass
 
     #Update statistics
-    if updateStatistics or autoUpdateStatistics:
-        ytameta.updateAllStatistics(path, autoUpdateStatistics)
+    if updateStatistics or updateCaptions or autoUpdateStatistics:
+        ytameta.updateAllStatistics(path, autoUpdateStatistics, updateCaptions)
 
     print("\nDONE!")
 # ########################################################################### #
