@@ -7,7 +7,6 @@ import re
 import argparse
 import time
 import sqlite3
-import logging
 import youtube_dl
 from youtube_dl.utils import read_batch_urls as readBatchURLs
 import ytacommon as yta
@@ -123,13 +122,6 @@ def archive(args, parsed=False):
 
     #Prepare log
     logFile = os.path.join(path, "log")
-    ytdlLogger = logging.getLogger("ytdl")
-    ytdlLogger.setLevel("DEBUG")
-    ytdlLogger.addHandler(logging.StreamHandler(sys.stdout))
-    ytdlLoggerFileHandler = logging.FileHandler(logFile, 'w+')
-    ytdlLoggerFileHandler.setLevel("INFO")
-    ytdlLogger.addHandler(ytdlLoggerFileHandler)
-    #ytdlOpts["logger"] = ytdlLogger
     #Download
     with DoubleLogger(logFile):
         with youtube_dl.YoutubeDL(ytdlOpts) as ytdl:
