@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 ''' ytarchiver - download and archive youtube videos or playlists '''
-
 import os
 import sys
 import re
@@ -10,6 +9,7 @@ import sqlite3
 import youtube_dl
 from youtube_dl.utils import read_batch_urls as readBatchURLs
 import ytacommon as yta
+from ytapost import PostHook
 import ytainfo
 import ytameta
 
@@ -68,11 +68,14 @@ def archive(args, parsed=False):
     #Check if database needs upgrade
     yta.upgradeDatabase(dbPath)
 
+    #Connect to database
+    db = yta.connectDB(dbPath)
+
     #Check if ID and language are specified
     if not args.LANG or (not args.VIDEO and not args.file):
         #Try reading playlist and language from database
         try:
-            (args.LANG, args.VIDEO) = readInfoFromDB(dbPath)
+            (args.LANG, args.VIDEO) = readInfoFromDB(db)
         except (sqlite3.Error, TypeError):
             #Try reading playlist and language from files
             try:
@@ -83,11 +86,6 @@ def archive(args, parsed=False):
             except (IndexError, OSError):
                 parser.error("LANG and VIDEO must be specified if no database exists.")
 
-    #Update lastupdate field
-    updateTimestamp = int(time.time())
-    db = yta.connectDB(dbPath)
-    db.execute("UPDATE channel SET lastupdate = ? WHERE id = 1", (updateTimestamp, ))
-
     #Replace existing video
     if args.replace:
         try:
@@ -97,21 +95,16 @@ def archive(args, parsed=False):
             print("ERROR: Unable to replace video with ID \"{}\" as it is not in the archive database".format(args.VIDEO))
             return
 
-    #Close database
-    yta.closeDB(db)
-
     #Prepare download
     dlfilePath = os.path.join(path, "downloaded")
-    dbPath = os.path.join(path, "archive.db")
-    writeDownloadedFile(dbPath, dlfilePath, args.replace, args.VIDEO)
+    writeDownloadedFile(db, dlfilePath, args.replace, args.VIDEO)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
     dlformat = yta.getFormatString(args.quality)
-    ytapostPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ytapost.py")
-    ytapost = "{} {} {} {{}} {}".format(ytapostPath, args.check, args.replace, args.LANG)
+    postHook = PostHook(args.LANG, db, args.check, args.replace)
 
     #Set options
-    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False}
-    ytdlOpts["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}, {"key": "FFmpegMetadata"}, {"key": "EmbedThumbnail","already_have_thumbnail": False}, {"key": "ExecAfterDownload", "exec_cmd": ytapost}]
+    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False, "post_hooks": [postHook.finished]}
+    ytdlOpts["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}, {"key": "FFmpegMetadata"}, {"key": "EmbedThumbnail","already_have_thumbnail": False}]
 
     #Check if archiving one video/playlist or using a batch file
     if args.file:
@@ -122,13 +115,15 @@ def archive(args, parsed=False):
 
     #Prepare log
     logFile = os.path.join(path, "log")
+
     #Download
     with DoubleLogger(logFile):
         with youtube_dl.YoutubeDL(ytdlOpts) as ytdl:
             ytdl.download(url)
 
-    #Open database
-    db = yta.connectDB(dbPath)
+    #Update lastupdate field
+    updateTimestamp = int(time.time())
+    db.execute("UPDATE channel SET lastupdate = ? WHERE id = 1", (updateTimestamp, ))
 
     #Update video number
     try:
@@ -226,11 +221,11 @@ def archiveAll(args):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def writeDownloadedFile(dbPath, filePath, replace, videoID):
+def writeDownloadedFile(db, filePath, replace, videoID):
     '''Write file containing Youtube IDs of all videos already archived
 
-    :param dbPath: Path of the archive database
-    :type dbPath: string
+    :param db: Connection to the archive database
+    :type db: sqlite3.Cursor
     :param filePath: Path where the file containing all existing IDs should be written to
     :type filePath: string
     :param replace: Whether to replace the existing video in the archive database
@@ -238,40 +233,32 @@ def writeDownloadedFile(dbPath, filePath, replace, videoID):
     :param videoID: The new video id
     :type videoID: string
     '''
-    #Check if db exists
-    if not os.path.isfile(dbPath):
-        return
     try:
         with open(filePath, 'w+') as f:
-            #Connect to database
-            db = yta.connectDB(dbPath)
             #Read IDs of all videos already in archive
             r = db.execute("SELECT youtubeID FROM videos;")
             for item in r.fetchall():
                 #Write IDs to file
                 if not (replace and videoID == item[0]):
                     f.write("youtube {}\n".format(item[0]))
-            yta.closeDB(db)
     except sqlite3.Error:
         return
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def readInfoFromDB(dbPath):
+def readInfoFromDB(db):
     '''Read playlist and language from database
 
-    :param dbPath: Path of the archive database
-    :type dbPath: string
+    :param db: Connection to the archive database
+    :type db: sqlite3.Cursor
 
     :raises: :class:``sqlite3.Error: Unable to read from database
 
     :returns: List with language code at index 0 and playlist at index 1
     :rtype: list of string
     '''
-    db = yta.connectDB(dbPath)
     r = db.execute("SELECT language,playlist FROM channel ORDER BY id DESC LIMIT 1;")
     item = r.fetchone()
-    yta.closeDB(db)
     return [item[0], item[1]]
 # ########################################################################### #
 
