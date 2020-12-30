@@ -166,7 +166,9 @@ def createVideoTable(dbCon):
                   likecount INTEGER,
                   dislikecount INTEGER,
                   statisticsupdated INTEGER NOT NULL DEFAULT 0,
-                  chapters TEXT
+                  chapters TEXT,
+                  oldtitles TEXT,
+                  olddescriptions TEXT
               ); """
     #Set encoding
     dbCon.execute("pragma encoding=UTF8")
