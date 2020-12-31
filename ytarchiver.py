@@ -29,6 +29,7 @@ def archive(args, parsed=False):
         group = parser.add_mutually_exclusive_group()
         group.add_argument("-s", "--statistics", action="store_const", dest="statistics", const=True, default=False, help="Update the video statistics")
         group.add_argument("-u", "--captions", action="store_const", dest="captions", const=True, default=False, help="List videos where captions were added since archiving (forces -s)")
+        group.add_argument("-x", "--amendcaptions", action="store_const", dest="amendcaptions", const=True, default=False, help="Download captions were they were added since archiving (forces -u and consequently -s)")
         parser.add_argument("-r", "--replace", action="store_const", dest="replace", const="-r", default="", help="Replace an existing video (a video ID has to be provided)")
         group = parser.add_mutually_exclusive_group()
         group.add_argument("-8k", "--8K", action="store_const", dest="quality", const="8k", help="Limit download resolution to 8K")
@@ -140,9 +141,9 @@ def archive(args, parsed=False):
         pass
 
     #Update statistics
-    if args.statistics or args.captions:
+    if args.statistics or args.captions or args.amendcaptions:
         print("Updating video statistics...")
-        ytameta.updateStatistics(db, updateTimestamp, args.captions)
+        ytameta.updateStatistics(db, updateTimestamp, args.captions, amendCaptions=args.amendcaptions)
 
     #Close database
     yta.closeDB(db)
@@ -167,8 +168,10 @@ def archiveAll(args):
     #Set statistics to false for subsequent calls
     updateStatistics = args.statistics
     updateCaptions = args.captions
+    amendCaptions = args.amendcaptions
     args.statistics = False
     args.captions = False
+    args.amendcaptions = False
 
     #Get path
     path = os.path.normpath(os.path.abspath(args.DIR))
@@ -223,8 +226,8 @@ def archiveAll(args):
                 pass
 
     #Update statistics
-    if updateStatistics or updateCaptions or autoUpdateStatistics:
-        ytameta.updateAllStatistics(path, autoUpdateStatistics, updateCaptions)
+    if updateStatistics or autoUpdateStatistics or updateCaptions or amendCaptions:
+        ytameta.updateAllStatistics(path, autoUpdateStatistics, updateCaptions, amendCaptions)
 
     print("\nDONE!")
 # ########################################################################### #

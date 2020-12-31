@@ -7,6 +7,7 @@ import argparse
 import sqlite3
 import random
 from datetime import datetime
+from xml.etree import ElementTree
 import time
 import json
 import requests
@@ -137,7 +138,7 @@ def modifyDatabase(db):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, count=sys.maxsize, apiKey=None):
+def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, count=sys.maxsize, apiKey=None, amendCaptions=False):
     '''Update the video statistics in an archive database
 
     :param db: Connection to the archive database
@@ -145,11 +146,13 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
     :param youngerTimestamp: Only videos with an update timestamp younger than this one will be updated (Default: max 64-bit int)
     :type lastUpdateTimestamp: integer, optional
     :param checkCaptions: Whether to check if captions were added since archiving the video (Default: False)
-    :type checkCaptions: boolean, optional
+    :type checkCaptions: boolean, option
     :param count: Max number of videos to update (Default: max 64-bit int)
     :type count: integer, optional
     :param apiKey: The API-Key for the Youtube-API (if not given, it will be read from file)
     :type apiKey: string, optional
+    :param amendCaptions: Whether to download the captions that were added since the video was archived
+    :type amendCaptions: boolean, optional
 
     :returns: Tuple with what is left of maxCount (int), whether the update was complete (bool)
     :rtype: Tuple
@@ -157,6 +160,8 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
     #Get API key
     if not apiKey:
         apiKey = getAPIKey()
+    #Check captions
+    checkCaptions = True if amendCaptions else checkCaptions
     #Loop through videos
     requestLimit = 50
     offset = 0
@@ -177,7 +182,7 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
         if requestLimit > count:
             requestLimit = count
         #Select videos
-        r = db.execute("SELECT id,youtubeID,title,description,subtitles,oldtitles,olddescriptions FROM videos ORDER BY id LIMIT ? OFFSET ?;", (requestLimit, offset))
+        r = db.execute("SELECT id,youtubeID,title,description,subtitles,oldtitles,olddescriptions,language FROM videos ORDER BY id LIMIT ? OFFSET ?;", (requestLimit, offset))
         videos = r.fetchall()
         #If no more videos exit look
         if not videos:
@@ -202,7 +207,7 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
                 subtitles = len(video[4]) > 0
             except TypeError:
                 subtitles = False
-            vids[video[1]] = [video[0], video[2], video[3], subtitles, oldtitles, olddescs] #database ID, title, desc, subtitles, oldtitles, olddescriptions
+            vids[video[1]] = [video[0], video[2], video[3], subtitles, oldtitles, olddescs, video[7]] #database ID, title, desc, subtitles, oldtitles, olddescriptions, language
         #Update offset and count
         offset += requestLimit
         count -= requestLimit
@@ -223,6 +228,7 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
             i["subtitles"] = vids[i["id"]][3]
             i["oldtitles"] = vids[i["id"]][4]
             i["olddescs"] = vids[i["id"]][5]
+            i["language"] = vids[i["id"]][6]
         #Add items to list
         items += d["items"]
 
@@ -264,7 +270,10 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
         captions = item["contentDetails"]["caption"].lower() == "true"
         if checkCaptions and captions != item["subtitles"]:
             if captions:
-                print("INFO: Video [{}] \"{}\" had captions added since archiving".format(item["id"], item["snippet"]["title"]))
+                if amendCaptions:
+                    amendCaption(db,item["dbid"], item["id"], item["language"])
+                else:
+                    print("INFO: Video [{}] \"{}\" had captions added since archiving".format(item["id"], item["snippet"]["title"]))
             else:
                 print("INFO: Video [{}] \"{}\" had captions removed since archiving".format(item["id"], item["snippet"]["title"]))
         #Update database
@@ -277,7 +286,7 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateAllStatistics(path, automatic=False, captions=False):
+def updateAllStatistics(path, automatic=False, captions=False, amendCaptions=False):
     '''Update the video statistics from all subdirs
 
     :param path: The path of the parent directory
@@ -286,6 +295,8 @@ def updateAllStatistics(path, automatic=False, captions=False):
     :type automatic: boolean
     :param captions: Whether to check if captions were added since archiving the video (Default: False)
     :type captions: boolean, optional
+    :param amendCaptions: Whether to download the captions that were added since the video was archived
+    :type amendCaptions: boolean, optional
     '''
     updateStarted = int(time.time())
     #Print message
@@ -337,7 +348,7 @@ def updateAllStatistics(path, automatic=False, captions=False):
             skippedSubdirs.append(subdir)
             continue
         #Update statistics
-        maxcount = updateSubdirStatistics(db, subdir, name, captions, maxcount, lastupdate, complete, apiKey)
+        maxcount = updateSubdirStatistics(db, subdir, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey)
 
     #Loop through skipped subdirs
     i = 0
@@ -353,7 +364,7 @@ def updateAllStatistics(path, automatic=False, captions=False):
         lastupdate, complete = channels[name]
         #Update statistics
         print("({}/{}) ".format(i, count), end='')
-        maxcount = updateSubdirStatistics(db, subdir, name, captions, maxcount, lastupdate, complete, apiKey)
+        maxcount = updateSubdirStatistics(db, subdir, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey)
 
     #Write lastupdate to statistics database
     db.execute("UPDATE setup SET lastupdate = ? WHERE id = 1", (updateStarted,))
@@ -362,7 +373,7 @@ def updateAllStatistics(path, automatic=False, captions=False):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateSubdirStatistics(db, path, name, captions, maxcount, lastupdate, complete, apiKey):
+def updateSubdirStatistics(db, path, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey):
     '''Update the statistics for one subdir
 
     :param db: Connection to the statistics database
@@ -373,6 +384,8 @@ def updateSubdirStatistics(db, path, name, captions, maxcount, lastupdate, compl
     :type name: string
     :param captions: Whether to check if captions were added since archiving the video (Default: False)
     :type captions: boolean
+    :param amendCaptions: Whether to download the captions that were added since the video was archived
+    :type amendCaptions: boolean, optional
     :param maxcount: The max number of videos allowed to update
     :type maxcount: integer
     :param lastupdate: Timestamp of the last update
@@ -392,16 +405,72 @@ def updateSubdirStatistics(db, path, name, captions, maxcount, lastupdate, compl
     #First update the stats missed last time
     updateTimestamp = int(time.time())
     if not complete:
-        maxcount, complete = updateStatistics(channelDB, lastupdate, captions, maxcount, apiKey)
+        maxcount, complete = updateStatistics(channelDB, lastupdate, captions, maxcount, apiKey, amendCaptions)
     #If counts left, update the other ones
     if complete and maxcount > 0:
-        maxcount, complete = updateStatistics(channelDB, updateTimestamp, captions, maxcount, apiKey)
+        maxcount, complete = updateStatistics(channelDB, updateTimestamp, captions, maxcount, apiKey, amendCaptions)
     #Close channel db
     yta.closeDB(channelDB)
     #Write new info to database
     db.execute("UPDATE channels SET lastupdate = ?, complete = ? WHERE name = ?;", (updateTimestamp, complete, name))
 
     return maxcount
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def amendCaption(db, dbID, youtubeID, lang):
+    '''Download the video captions that were added since the video was archived
+
+    :param db: Connection to the statistics database
+    :type db: sqlite3.Connection
+    :param dbID: The id of the video in the video table
+    :type dbID: integer
+    :param youtubeID: The youtube id of the video
+    :type youtubeID: string
+    :param lang: The language string of the video
+    :type lang: string
+    '''
+    #Get a list of all available subtitles
+    try:
+        url = "https://video.google.com/timedtext?hl=en&type=list&v=" + youtubeID
+        r = requests.get(url)
+        r.raise_for_status()
+        subs = [c.attrib for c in ElementTree.fromstring(r.content) if c.tag == "track"]
+    except requests.exceptions.HTTPError:
+        print("ERROR: Unable to amend subtitles for video \"{}\"".format(youtubeID))
+        return
+    sub = None
+    #Try direct match for sub language
+    for s in subs:
+        if s["lang_code"] == lang:
+            sub = s
+            break
+    #No direct match, try prefix match
+    if not sub:
+        for s in subs:
+            if s["lang_code"][0:2] == lang:
+                sub = s
+                break
+    if not sub:
+        print("ERROR: No subtitle with language \"{}\" for video \"{}\" available".format(lang, youtubeID))
+        return
+    #Download subtitles
+    try:
+        url = "https://video.google.com/timedtext?fmt=vtt&lang={}&v={}&name={}".format(sub["lang_code"], youtubeID, requests.utils.quote(sub["name"]))
+        r = requests.get(url)
+        r.raise_for_status()
+        subtitles = r.text
+    except requests.exceptions.HTTPError:
+        print("ERROR: Unable to download subtitle \"{}\" for video \"{}\"".format(sub["lang_code"], youtubeID))
+        return
+    #Write new subtitles to database
+    try:
+        db.execute("UPDATE videos SET subtitles = ? WHERE id = ?", (subtitles, dbID))
+    except sqlite3.Error as e:
+        print("ERROR: Unable to write subtitle for video \"{}\" to database (Error: \"{}\")".format(youtubeID, e))
+        return
+    #Print success message
+    print("INFO: Added subtitle \"{}\" for video \"{}\" to the database".format(sub["lang_code"], youtubeID))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
