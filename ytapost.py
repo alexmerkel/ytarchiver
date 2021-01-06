@@ -200,6 +200,8 @@ def processFile(name, subLang, db, check, replace):
     artist, title = ytafix.fixVideo(newName, videoID, fileArtist=artist)
     #Calculate checksum
     checksum = yta.calcSHA(newName)
+    #Get filesize
+    filesize = os.path.getsize(newName)
     #Check file integrity
     if check:
         cmd = ["ffmpeg", "-v", "error", "-i", newName, "-f", "null", "-"]
@@ -222,7 +224,7 @@ def processFile(name, subLang, db, check, replace):
             thumbData = None
             thumbFormat = None
     #Save to database
-    saveToDB(db, replace, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters)
+    saveToDB(db, replace, title, artist, date, timestamp, desc, videoID, subs, fileName, checksum, thumbData, thumbFormat, duration, tags, formatString, width, height, subLang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters, filesize)
     #Remove replaced file:
     if replace:
         try:
@@ -232,7 +234,7 @@ def processFile(name, subLang, db, check, replace):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def saveToDB(db, replace, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters):
+def saveToDB(db, replace, name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, viewCount, likeCount, dislikeCount, statisticsUpdated, chapters, filesize):
     '''Write info to database
 
     :param db: Connection to the database
@@ -283,6 +285,8 @@ def saveToDB(db, replace, name, artist, date, timestamp, desc, youtubeID, subs, 
     :type statisticsUpdated: integer
     :param chapters: String containing one chapter per line in the format:  hh:mm:ss.sss Chapter Name
     :type chapters: string
+    :param filesize: The size of the video file in bytes
+    :type filesize: Integer
 
     :raises: :class:``sqlite3.Error: Unable to write to database
     '''
@@ -297,8 +301,8 @@ def saveToDB(db, replace, name, artist, date, timestamp, desc, youtubeID, subs, 
         #Check if title and desc are unchanged
         if currentTitle == name and currentDesc == desc:
             #Unchanged, just update the rest
-            update = "UPDATE videos SET creator = ?, date = ?, timestamp = ?, subtitles = ?, filename = ?, checksum = ?, thumb = ?, thumbformat = ?, duration = ?, tags = ?, resolution = ?, width = ?, height = ?, language = ?, chapters = ? WHERE id = ?"
-            db.execute(update, (artist, date, timestamp, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, dbID))
+            update = "UPDATE videos SET creator = ?, date = ?, timestamp = ?, subtitles = ?, filename = ?, checksum = ?, thumb = ?, thumbformat = ?, duration = ?, tags = ?, resolution = ?, width = ?, height = ?, language = ?, chapters = ?, filesize = ? WHERE id = ?"
+            db.execute(update, (artist, date, timestamp, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, filesize, dbID))
         else:
             #Changed, write old title + desc to json, update everything
             t = int(time.time())
@@ -323,11 +327,11 @@ def saveToDB(db, replace, name, artist, date, timestamp, desc, youtubeID, subs, 
             else:
                 olddescs = info[4]
             #Update db
-            update = "UPDATE videos SET title = ?, creator = ?, date = ?, timestamp = ?, description = ?, subtitles = ?, filename = ?, checksum = ?, thumb = ?, thumbformat = ?, duration = ?, tags = ?, resolution = ?, width = ?, height = ?, language = ?, chapters = ? , oldtitles = ?, olddescriptions = ? WHERE id = ?"
-            db.execute(update, (name, artist, date, timestamp, desc, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, oldtitles, olddescs, dbID))
+            update = "UPDATE videos SET title = ?, creator = ?, date = ?, timestamp = ?, description = ?, subtitles = ?, filename = ?, checksum = ?, thumb = ?, thumbformat = ?, duration = ?, tags = ?, resolution = ?, width = ?, height = ?, language = ?, chapters = ? , oldtitles = ?, olddescriptions = ?, filesize = ?  WHERE id = ?"
+            db.execute(update, (name, artist, date, timestamp, desc, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, oldtitles, olddescs, filesize, dbID))
     else:
-        insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language, chapters) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-        db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters))
+        insert = "INSERT INTO videos(title, creator, date, timestamp, description, youtubeID, subtitles, filename, checksum, thumb, thumbformat, duration, tags, resolution, width, height, language, chapters, filesize) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        db.execute(insert, (name, artist, date, timestamp, desc, youtubeID, subs, filename, checksum, thumbData, thumbFormat, duration, tags, res, width, height, lang, chapters, filesize))
     #Update statistics if statisticsUpdated is not None
     if statisticsUpdated:
         update = "UPDATE videos SET viewcount = ?, likecount = ?, dislikecount = ?, statisticsupdated = ? WHERE youtubeID = ?"

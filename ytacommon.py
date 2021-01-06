@@ -12,7 +12,7 @@ import requests
 
 # --------------------------------------------------------------------------- #
 __version__ = "1.4.1"
-__dbversion__ = 6
+__dbversion__ = 7
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -126,7 +126,8 @@ def createChannelTable(dbCon):
                   videos INTEGER NOT NULL,
                   lastupdate INTEGER NOT NULL,
                   dbversion INTEGER NOT NULL,
-                  maxresolution NOT NULL
+                  maxresolution NOT NULL,
+                  totalsize INTEGER NOT NULL
               ); """
     #Set encoding
     dbCon.execute("pragma encoding=UTF8")
@@ -168,7 +169,8 @@ def createVideoTable(dbCon):
                   statisticsupdated INTEGER NOT NULL DEFAULT 0,
                   chapters TEXT,
                   oldtitles TEXT,
-                  olddescriptions TEXT
+                  olddescriptions TEXT,
+                  filesize INTEGER NOT NULL
               ); """
     #Set encoding
     dbCon.execute("pragma encoding=UTF8")
@@ -266,6 +268,7 @@ def upgradeDatabase(dbPath):
                 #Update format
                 r = db.execute("SELECT id,width,height FROM videos;")
                 videos = r.fetchall()
+                del r
                 for video in videos:
                     _, f = convertResolution(video[1], video[2])
                     db.execute("UPDATE videos SET resolution = ? WHERE id = ?;", (f, video[0]))
@@ -274,6 +277,27 @@ def upgradeDatabase(dbPath):
                 db.execute('ALTER TABLE videos ADD COLUMN olddescriptions TEXT;')
                 #Update db version
                 version = 6
+                db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (version,))
+                dbCon.commit()
+            #Perform upgrade to version 7
+            if version < 7:
+                #Add filesize and totalsize column
+                db.execute('ALTER TABLE videos ADD COLUMN filesize INTEGER NOT NULL DEFAULT 0;')
+                db.execute('ALTER TABLE channel ADD COLUMN totalsize INTEGER NOT NULL DEFAULT 0;')
+                #Read filesize
+                dirname = os.path.dirname(dbPath)
+                r = db.execute("SELECT id,filename FROM videos;")
+                videos = r.fetchall()
+                del r
+                for video in videos:
+                    try:
+                        b = os.path.getsize(os.path.join(dirname, video[1]))
+                        db.execute("UPDATE videos SET filesize = ? WHERE id = ?;", (b, video[0]))
+                    except OSError:
+                        pass
+                db.execute("UPDATE channel SET totalsize = (SELECT sum(filesize) FROM videos);")
+                #Update db version
+                version = 7
                 db.execute("UPDATE channel SET dbversion = ? WHERE id = 1", (version,))
                 dbCon.commit()
         except sqlite3.Error as e:

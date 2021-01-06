@@ -133,10 +133,9 @@ def archive(args, parsed=False):
     #Open database
     db = yta.connectDB(dbPath)
 
-    #Update video number
+    #Update video number and totalsize
     try:
-        videos = db.execute("SELECT count(*) FROM videos;").fetchone()[0]
-        db.execute("UPDATE channel SET videos = ? WHERE id = 1", (videos, ))
+        db.execute("UPDATE channel SET videos = (SELECT count(id) FROM videos), totalsize = (SELECT sum(filesize) FROM videos) WHERE id = 1;")
     except sqlite3.Error:
         pass
 
