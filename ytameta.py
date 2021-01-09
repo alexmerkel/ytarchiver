@@ -53,7 +53,7 @@ def addMetadata(args):
             db.execute("UPDATE videos SET timestamp = ?, duration = ?, tags = ? WHERE youtubeID = ?", (timestamp, duration, tags, youtubeID))
         except yta.NoAPIKeyError:
             break
-        except requests.exceptions.HTTPError:
+        except requests.exceptions.RequestException:
             print("ERROR: Unable to load metadata for {}".format(youtubeID))
             continue
     #Close database
@@ -69,7 +69,7 @@ def getMetadata(youtubeID):
     :type youtubeID: string
 
     :raises: :class:``ytacommon.NoAPIKeyError: Unable to read API key from file
-    :raises: :class:``requests.exceptions.HTTPError: Unable to get metadata
+    :raises: :class:``requests.exceptions.RequestException: Unable to get metadata
 
     :returns: List with timestamp (int) at index 0, duration (int) at index 1,
         tags (string) at index 2, description (string) at index 3,
@@ -156,6 +156,7 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
     :type amendCaptions: boolean, optional
 
     :raises: :class:``ytacommon.NoAPIKeyError: Unable to read API key from file
+    :raises: :class:``requests.exceptions.RequestException: Unable to connect to API endpoint
 
     :returns: Tuple with what is left of maxCount (int), whether the update was complete (bool)
     :rtype: Tuple
@@ -304,6 +305,7 @@ def updateAllStatistics(path, automatic=False, captions=False, amendCaptions=Fal
     :type amendCaptions: boolean, optional
 
     :raises: :class:``ytacommon.NoAPIKeyError: Unable to read API key from file
+    :raises: :class:``requests.exceptions.RequestException: Unable to connect to API endpoint
     '''
     updateStarted = int(time.time())
     #Print message
@@ -404,6 +406,8 @@ def updateSubdirStatistics(db, path, name, captions, amendCaptions, maxcount, la
     :param apiKey: The API-Key for the Youtube-API
     :type apiKey: string
 
+    :raises: :class:``requests.exceptions.RequestException: Unable to connect to API endpoint
+
     :returns: Number of update counts left
     :rtype: integer
     '''
@@ -445,7 +449,7 @@ def amendCaption(db, dbID, youtubeID, lang):
         r = requests.get(url)
         r.raise_for_status()
         subs = [c.attrib for c in ElementTree.fromstring(r.content) if c.tag == "track"]
-    except requests.exceptions.HTTPError:
+    except requests.exceptions.RequestException:
         print("ERROR: Unable to amend subtitles for video \"{}\"".format(youtubeID))
         return
     sub = None
@@ -475,7 +479,7 @@ def amendCaption(db, dbID, youtubeID, lang):
         r = requests.get(url)
         r.raise_for_status()
         subtitles = r.text
-    except requests.exceptions.HTTPError:
+    except requests.exceptions.RequestException:
         print("ERROR: Unable to download subtitle \"{}\" for video \"{}\"".format(sub["lang_code"], youtubeID))
         return
     #Write new subtitles to database

@@ -9,6 +9,7 @@ import time
 import sqlite3
 import youtube_dl
 from youtube_dl.utils import read_batch_urls as readBatchURLs
+from requests.exceptions import RequestException
 import ytacommon as yta
 import ytainfo
 import ytameta
@@ -149,6 +150,8 @@ def archive(args, parsed=False):
             ytameta.updateStatistics(db, updateTimestamp, args.captions, amendCaptions=args.amendcaptions)
         except yta.NoAPIKeyError:
             print("ERROR: Unable to update video statistics as no API key is available")
+        except RequestException as e:
+            print("ERROR: Unable to update video statistics due to connection error: \"{}\"".format(e))
 
     #Close database
     yta.closeDB(db)
@@ -232,7 +235,12 @@ def archiveAll(args):
 
     #Update statistics
     if updateStatistics or autoUpdateStatistics or updateCaptions or amendCaptions:
-        ytameta.updateAllStatistics(path, autoUpdateStatistics, updateCaptions, amendCaptions)
+        try:
+            ytameta.updateAllStatistics(path, autoUpdateStatistics, updateCaptions, amendCaptions)
+        except yta.NoAPIKeyError:
+            print("ERROR: Unable to update video statistics as no API key is available")
+        except RequestException as e:
+            print("ERROR: Unable to update video statistics due to connection error: \"{}\"".format(e))
 
     print("\nDONE!")
 # ########################################################################### #
