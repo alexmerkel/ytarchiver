@@ -445,7 +445,13 @@ def amendCaption(db, dbID, youtubeID, lang):
         if s["lang_code"] == lang:
             sub = s
             break
-    #No direct match, try prefix match
+    #No direct match, try prefix match with default key
+    if not sub:
+        for s in subs:
+            if s["lang_code"][0:2] == lang and "lang_default" in s and s["lang_default"]:
+                sub = s
+                break
+    #No direct match, try prefix match without default key
     if not sub:
         for s in subs:
             if s["lang_code"][0:2] == lang:
