@@ -445,7 +445,12 @@ def extractChapters(desc):
         else:
             if not r1.match(line):
                 inChapters = False
-                break
+                #If more than three chapters exit loop
+                if len(chapters) >= 3:
+                    break
+                #Else, not a chapter block, clear and keep searching
+                chapters.clear()
+                continue
         #Parse chapter info
         ts = r2.search(line).group(0)
         try:
@@ -481,10 +486,10 @@ def getAPIKey(askWhenMissing=False):
     :rtype: string
     '''
     #Check if test env
-    if os.environ.get('YTA_TEST'):
+    if os.environ.get("YTA_TEST"):
         #Return test API key
-        if os.environ.get('YTA_TEST_APIKEY'):
-            return os.environ.get('YTA_TEST_APIKEY')
+        if os.environ.get("YTA_TEST_APIKEY"):
+            return os.environ.get("YTA_TEST_APIKEY")
         #In test mode, but no test API key, print warning
         print("WARNING: No test API key given, trying to use \"normal\" API key")
 
@@ -494,7 +499,7 @@ def getAPIKey(askWhenMissing=False):
         apiKey = readAPIKey(os.path.join(dirs.user_data_dir, "ytapikey"))
     except OSError:
         try:
-            #Try system data dir first (e.g. /usr/local/share, /Library/Application Support)
+            #Try system data dir (e.g. /usr/local/share, /Library/Application Support)
             apiKey = readAPIKey(os.path.join(dirs.site_data_dir, "ytapikey"))
         except OSError:
             #No api key
