@@ -9,6 +9,7 @@ import subprocess
 import hashlib
 from decimal import Decimal as decimal
 import requests
+from appdirs import AppDirs
 
 # --------------------------------------------------------------------------- #
 __version__ = "1.4.1"
@@ -468,6 +469,83 @@ def extractChapters(desc):
         chapters.append("{} {}".format(ts, name))
     #Return chapter or none
     return '\n'.join(chapters) if len(chapters) >= 3 else None
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def getAPIKey(askWhenMissing=False):
+    '''Get the API key from the config or ask for it
+
+    :param askWhenMissing: Whether to ask for an API key if non is found (Default: False)
+    :type askWhenMissing: boolean, optional
+    :returns: The API key or None
+    :rtype: string
+    '''
+    #Check if test env
+    if os.environ.get('YTA_TEST'):
+        #Return test API key
+        if os.environ.get('YTA_TEST_APIKEY'):
+            return os.environ.get('YTA_TEST_APIKEY')
+        #In test mode, but no test API key, print warning
+        print("WARNING: No test API key given, trying to use \"normal\" API key")
+
+    dirs = AppDirs("ytarchiver", "yta")
+    try:
+        #Try user data dir (e.g. ~.config, ~/Library/Application Support, AppData\Local)
+        apiKey = readAPIKey(os.path.join(dirs.user_data_dir, "ytapikey"))
+    except OSError:
+        try:
+            #Try system data dir first (e.g. /usr/local/share, /Library/Application Support)
+            apiKey = readAPIKey(os.path.join(dirs.site_data_dir, "ytapikey"))
+        except OSError:
+            #No api key
+            apiKey = None
+    #No API key
+    if not apiKey:
+        print("WARNING: No Youtube data API key available, unable to load additional metadata")
+        #Ask for an API key
+        if askWhenMissing:
+            q = input("Enter Youtube API key or press enter to continue without (NOT RECOMMENDED): ")
+            if q:
+                #Save given key
+                apiKey = q
+                try:
+                    os.makedirs(dirs.user_data_dir, exist_ok=True)
+                    with open(os.path.join(dirs.user_data_dir, "ytapikey"), 'w') as f:
+                        f.write(apiKey)
+                except OSError:
+                    print("WARNING: Unable to save API key")
+                    raise
+    return apiKey
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def readAPIKey(filePath):
+    '''Read the API key from the given file
+
+    :param filePath: The file path to read from
+    :type filePath: string
+    :returns: The API key
+    :rtype: string
+
+    :raises: :class:``OSError: Unable to read API key from file
+    '''
+    #Open file
+    with open(filePath) as f:
+        #Read first line
+        line = f.readline().strip()
+        while line:
+            #If line is not a comment, return it as the api key
+            if not line.startswith('#'):
+                return line
+            #Read next line
+            line = f.readline().strip()
+        #Either no lines or only comments, raise error
+        raise OSError
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+class NoAPIKeyError(Exception):
+    '''Raised if no API key was provided'''
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

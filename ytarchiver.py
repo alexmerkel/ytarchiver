@@ -42,6 +42,9 @@ def archive(args, parsed=False):
         parser.add_argument("VIDEO", nargs='?', help="The Youtube video or playlist ID (read from the database if not given)")
         args = parser.parse_args()
 
+    #Check if API key provided
+    yta.getAPIKey(True)
+
     #Archive all subdirectories
     if args.all:
         archiveAll(args)
@@ -142,7 +145,10 @@ def archive(args, parsed=False):
     #Update statistics
     if args.statistics or args.captions or args.amendcaptions:
         print("Updating video statistics...")
-        ytameta.updateStatistics(db, updateTimestamp, args.captions, amendCaptions=args.amendcaptions)
+        try:
+            ytameta.updateStatistics(db, updateTimestamp, args.captions, amendCaptions=args.amendcaptions)
+        except yta.NoAPIKeyError:
+            print("ERROR: Unable to update video statistics as no API key is available")
 
     #Close database
     yta.closeDB(db)

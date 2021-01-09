@@ -148,8 +148,8 @@ def processFile(name, subLang, db, check, replace):
     statisticsUpdated = None
     try:
         [timestamp, duration, tags, apiDesc, viewCount, likeCount, dislikeCount, statisticsUpdated] = ytameta.getMetadata(videoID)
-    except FileNotFoundError:
-        print("WARNING: No Youtube data API key available, unable to load additional metadata")
+    except yta.NoAPIKeyError:
+        pass
     except OSError:
         print("ERROR: Unable to load metadata for {}".format(videoID))
     if timestamp:

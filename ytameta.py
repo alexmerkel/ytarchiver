@@ -51,8 +51,7 @@ def addMetadata(args):
         try:
             [timestamp, duration, tags, _, _, _, _, _] = getMetadata(youtubeID)
             db.execute("UPDATE videos SET timestamp = ?, duration = ?, tags = ? WHERE youtubeID = ?", (timestamp, duration, tags, youtubeID))
-        except FileNotFoundError:
-            print("WARNING: No Youtube data API key available, unable to load additional metadata")
+        except yta.NoAPIKeyError:
             break
         except requests.exceptions.HTTPError:
             print("ERROR: Unable to load metadata for {}".format(youtubeID))
@@ -69,7 +68,7 @@ def getMetadata(youtubeID):
     :param youtubeID: The Youtube ID
     :type youtubeID: string
 
-    :raises: :class:``OSError: Unable to read API key from file
+    :raises: :class:``ytacommon.NoAPIKeyError: Unable to read API key from file
     :raises: :class:``requests.exceptions.HTTPError: Unable to get metadata
 
     :returns: List with timestamp (int) at index 0, duration (int) at index 1,
@@ -80,7 +79,9 @@ def getMetadata(youtubeID):
     :rtype: list
     '''
     #Get API key
-    apiKey = getAPIKey()
+    apiKey = yta.getAPIKey()
+    if not apiKey:
+        raise yta.NoAPIKeyError
     #Get metadata
     url = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails%2Csnippet%2Cstatistics&id={}&key={}".format(youtubeID, apiKey)
     r = requests.get(url)
@@ -154,12 +155,16 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
     :param amendCaptions: Whether to download the captions that were added since the video was archived
     :type amendCaptions: boolean, optional
 
+    :raises: :class:``ytacommon.NoAPIKeyError: Unable to read API key from file
+
     :returns: Tuple with what is left of maxCount (int), whether the update was complete (bool)
     :rtype: Tuple
     '''
     #Get API key
     if not apiKey:
-        apiKey = getAPIKey()
+        apiKey = yta.getAPIKey()
+    if not apiKey:
+        raise yta.NoAPIKeyError
     #Check captions
     checkCaptions = True if amendCaptions else checkCaptions
     #Loop through videos
@@ -297,6 +302,8 @@ def updateAllStatistics(path, automatic=False, captions=False, amendCaptions=Fal
     :type captions: boolean, optional
     :param amendCaptions: Whether to download the captions that were added since the video was archived
     :type amendCaptions: boolean, optional
+
+    :raises: :class:``ytacommon.NoAPIKeyError: Unable to read API key from file
     '''
     updateStarted = int(time.time())
     #Print message
@@ -328,7 +335,9 @@ def updateAllStatistics(path, automatic=False, captions=False, amendCaptions=Fal
     #Get maxcount
     maxcount = db.execute("SELECT maxcount FROM setup WHERE id = 1 LIMIT 1;").fetchone()[0]
     #Get API key
-    apiKey = getAPIKey()
+    apiKey = yta.getAPIKey()
+    if not apiKey:
+        raise yta.NoAPIKeyError
     #Loop through subdirs, skip completed ones
     skippedSubdirs = []
     for subdir in subdirs:
@@ -538,20 +547,6 @@ def connectUpdateCreateStatisticsDB(directory):
 
     #Return connection to database
     return dbCon
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def getAPIKey():
-    '''Read the API key from ~/.ytarchiverapi
-
-    :raises: :class:``OSError: Unable to read API key from file
-    '''
-    apiPath = os.path.join(os.path.expanduser('~'), ".ytarchiverapi")
-    with open(apiPath) as f:
-        apiKey = f.readline().strip()
-    if not apiKey:
-        raise FileNotFoundError
-    return apiKey
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
