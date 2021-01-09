@@ -229,9 +229,12 @@ def upgradeDatabase(dbPath):
                 dirname = os.path.dirname(dbPath)
                 del r
                 for f in files:
-                    path = os.path.join(dirname, f[1])
-                    _, formatString, width, height = readResolution(path)
-                    db.execute("UPDATE videos SET width = ?, height = ?, resolution = ? WHERE id = ?", (width, height, formatString, f[0]))
+                    try:
+                        path = os.path.join(dirname, f[1])
+                        _, formatString, width, height = readResolution(path)
+                        db.execute("UPDATE videos SET width = ?, height = ?, resolution = ? WHERE id = ?", (width, height, formatString, f[0]))
+                    except FileNotFoundError:
+                        pass
                 #Add maxres to channel
                 db.execute('ALTER TABLE channel ADD COLUMN maxresolution NOT NULL DEFAULT "default";')
                 #Update db version

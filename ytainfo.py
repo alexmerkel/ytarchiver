@@ -147,8 +147,8 @@ def createEmpty(dbPath):
     '''
     #Create/connect database
     db = createOrConnectDB(dbPath)
-    insert = "INSERT INTO channel(name, url, playlist, language, videos, lastupdate, dbversion, maxresolution) VALUES(?,?,?,?,?,?,?,?)"
-    db.execute(insert, ('', '', '', '', 0, 0, yta.__dbversion__, "default"))
+    insert = "INSERT INTO channel(name, url, playlist, language, videos, lastupdate, dbversion, maxresolution, totalsize) VALUES(?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, ('', '', '', '', 0, 0, yta.__dbversion__, "default", 0))
 
     yta.closeDB(db)
 # ########################################################################### #

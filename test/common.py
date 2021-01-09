@@ -61,3 +61,12 @@ def setTestAPIKey():
     if apiKey:
         os.environ["YTA_TEST_APIKEY"] = apiKey
 # ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def deleteIfExists(path):
+    '''Deletes the file at path if it exists'''
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+# ########################################################################### #
