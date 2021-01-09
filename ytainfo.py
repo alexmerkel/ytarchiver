@@ -131,8 +131,8 @@ def add(dbPath):
             print("ERROR: Invalid URL")
             continue
 
-    insert = "INSERT INTO channel(name, url, playlist, language, description, location, joined, links, profile, profileformat, banner, bannerformat, videos, lastupdate, dbversion, maxresolution) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    db.execute(insert, (name, url, playlist, language, desc, location, joined, links, profile, profileformat, banner, bannerformat, 0, 0, yta.__dbversion__, "default"))
+    insert = "INSERT INTO channel(name, url, playlist, language, description, location, joined, links, profile, profileformat, banner, bannerformat, videos, lastupdate, dbversion, maxresolution, totalsize) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+    db.execute(insert, (name, url, playlist, language, desc, location, joined, links, profile, profileformat, banner, bannerformat, 0, 0, yta.__dbversion__, "default", 0))
     print("FINISHED ADDING CHANNEL INFO")
 
     yta.closeDB(db)
