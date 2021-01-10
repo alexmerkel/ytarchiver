@@ -4,6 +4,8 @@
 import os
 from appdirs import user_data_dir
 
+TESTDATA = os.path.join(os.path.dirname(__file__), "testdata")
+
 # --------------------------------------------------------------------------- #
 def setTestMode():
     '''Set environment variable for testing'''
