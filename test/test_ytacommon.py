@@ -4,25 +4,15 @@
 import os
 from shutil import copyfile
 import pytest
-import common
+import utils
 
 import ytacommon
-
-# --------------------------------------------------------------------------- #
-@pytest.fixture(autouse=True)
-def setup():
-    '''Common setup'''
-    common.setTestMode()
-    #common.setTestAPIKey()
-    yield
-    common.unsetTestMode()
-# ########################################################################### #
 
 # --------------------------------------------------------------------------- #
 def test_calcSHA():
     '''Test the SHA256 calculation'''
     #Perform calculation
-    received = ytacommon.calcSHA(os.path.join(common.TESTDATA, "testimg.png"))
+    received = ytacommon.calcSHA(os.path.join(os.environ["YTA_TESTDATA"], "testimg.png"))
     #Compare
     expected = "5cf2415463b439b87d908570b1e6caa98d77707cfbae187d04448cf36a3653e0"
     assert received == expected
@@ -36,7 +26,7 @@ def test_loadImage():
     url = "https://raw.githubusercontent.com/alexmerkel/ytarchiver/master/test/testdata/testimg.png"
     [img, mime] = ytacommon.loadImage(url)
     #Read comparison
-    with open(os.path.join(common.TESTDATA, "testimg.png"), "rb") as f:
+    with open(os.path.join(os.environ["YTA_TESTDATA"], "testimg.png"), "rb") as f:
         expected = f.read()
     #Compare
     assert mime == "image/png"
@@ -60,7 +50,7 @@ def test_upgradeDatabaseV2(version):
     del r
     #Close and remove database
     ytacommon.closeDB(db)
-    common.deleteIfExists(dbPath)
+    utils.deleteIfExists(dbPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -82,7 +72,7 @@ def test_upgradeDatabaseV3(version):
     assert r.fetchone()[0] == "default"
     #Close and remove database
     ytacommon.closeDB(db)
-    common.deleteIfExists(dbPath)
+    utils.deleteIfExists(dbPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -101,7 +91,7 @@ def test_upgradeDatabaseV4(version):
     assert r.rowcount == 1
     #Close and remove database
     ytacommon.closeDB(db)
-    common.deleteIfExists(dbPath)
+    utils.deleteIfExists(dbPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -124,7 +114,7 @@ def test_upgradeDatabaseV5(version):
         assert r.rowcount == 1
     #Close and remove database
     ytacommon.closeDB(db)
-    common.deleteIfExists(dbPath)
+    utils.deleteIfExists(dbPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -149,7 +139,7 @@ def test_upgradeDatabaseV6(version):
     assert r.rowcount == 1
     #Close and remove database
     ytacommon.closeDB(db)
-    common.deleteIfExists(dbPath)
+    utils.deleteIfExists(dbPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -171,7 +161,7 @@ def test_upgradeDatabaseV7(version):
     assert r.rowcount == 1
     #Close and remove database
     ytacommon.closeDB(db)
-    common.deleteIfExists(dbPath)
+    utils.deleteIfExists(dbPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -195,9 +185,9 @@ def createNewTestDB(path):
 def prepareAndUpgradeDatabase(version):
     '''Prepare the database and perform the update, returns path to upgraded database'''
     #Prepare database
-    origDBPath = os.path.join(common.TESTDATA, "dbversions", "dbv{}.db".format(version))
-    dbPath = os.path.join(common.TESTDATA, "test.db")
-    common.deleteIfExists(dbPath)
+    origDBPath = os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv{}.db".format(version))
+    dbPath = os.path.join(os.environ["YTA_TESTDATA"], "test.db")
+    utils.deleteIfExists(dbPath)
     if version > 0:
         #Old database version
         copyfile(origDBPath, dbPath)
@@ -212,7 +202,7 @@ def prepareAndUpgradeDatabase(version):
 def test_readResolution():
     '''Test the resolution reading from a file'''
     #Read resoption
-    hd, formatString, width, height = ytacommon.readResolution(os.path.join(common.TESTDATA, "testimg.png"))
+    hd, formatString, width, height = ytacommon.readResolution(os.path.join(os.environ["YTA_TESTDATA"], "testimg.png"))
     #Compare
     assert hd == 0
     assert formatString == "SD"
@@ -245,11 +235,11 @@ def test_convertDuration(string, expected):
 def test_extractChapters(num):
     '''Test the chapter extraction'''
     #Read description
-    descPath = os.path.join(common.TESTDATA, "testdesc", "{}.desc".format(num))
+    descPath = os.path.join(os.environ["YTA_TESTDATA"], "testdesc", "{}.desc".format(num))
     with open(descPath) as f:
         desc = f.read()
     #Read expected chapters
-    chaptersPath = os.path.join(common.TESTDATA, "testdesc", "{}.chapters".format(num))
+    chaptersPath = os.path.join(os.environ["YTA_TESTDATA"], "testdesc", "{}.chapters".format(num))
     with open(chaptersPath) as f:
         expected = f.read()
     if not expected:
