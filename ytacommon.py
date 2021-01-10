@@ -561,6 +561,6 @@ def toInt(var):
     '''Cast a variable to integer or return null if not possible'''
     try:
         return int(var)
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 # ########################################################################### #
