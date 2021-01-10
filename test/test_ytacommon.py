@@ -2,12 +2,10 @@
 ''' unit test suite for ytacommon '''
 
 import os
-import sys
 from shutil import copyfile
 import pytest
 import common
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import ytacommon
 
 TESTDATA = os.path.join(os.path.dirname(__file__), "testdata")
@@ -20,6 +18,31 @@ def setup():
     #common.setTestAPIKey()
     yield
     common.unsetTestMode()
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def test_calcSHA():
+    '''Test the SHA256 calculation'''
+    #Perform calculation
+    received = ytacommon.calcSHA(os.path.join(TESTDATA, "testimg.png"))
+    #Compare
+    expected = "5cf2415463b439b87d908570b1e6caa98d77707cfbae187d04448cf36a3653e0"
+    assert received == expected
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.mark.network
+def test_loadImage():
+    '''Test the image download'''
+    #Download file
+    url = "https://raw.githubusercontent.com/alexmerkel/ytarchiver/master/test/testdata/testimg.png"
+    [img, mime] = ytacommon.loadImage(url)
+    #Read comparison
+    with open(os.path.join(TESTDATA, "testimg.png"), "rb") as f:
+        expected = f.read()
+    #Compare
+    assert mime == "image/png"
+    assert img == expected
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -187,6 +210,19 @@ def prepareAndUpgradeDatabase(version):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
+@pytest.mark.exiftool
+def test_readResolution():
+    '''Test the resolution reading from a file'''
+    #Read resoption
+    hd, formatString, width, height = ytacommon.readResolution(os.path.join(TESTDATA, "testimg.png"))
+    #Compare
+    assert hd == 0
+    assert formatString == "SD"
+    assert width == 800
+    assert height == 800
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("w,h,expInd,expStr", [(320,240,0,"LD"), (640,360,0,"LD"), (640,480,0,"SD"), (854,480,0,"SD"), (768,576,0,"SD"), (1024,576,0,"SD"), (1280,720,1,"HD"), (1920,1080,2,"Full HD"), (1080,1920,2,"Full HD"), (1920,810,2,"Full HD"), (2560,1440,2,"Full HD"), (3840,2160,3,"4K UHD"), (7680,4320,3,"8K UHD")], ids=["LD240", "LD360", "SD480", "SD480w", "SD576", "SD576w", "HD720", "HD1080", "HD1080f", "HD1080w", "HD1440", "UHD2160", "UHD4320"])
 def test_convertResolution(w, h, expInd, expStr):
     '''Test the resolution conversion'''
@@ -222,6 +258,16 @@ def test_extractChapters(num):
         expected = None
     #Extract chapters
     received = ytacommon.extractChapters(desc)
+    #Compare
+    assert received == expected
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("var,expected", [(10, 10), ("11", 11), (12.1, 12), ("13.2", None), ("abc", None), (None, None)], ids=["int", "str_int", "float", "float_str", "str", "none"])
+def test_toInt(var,expected):
+    '''Test the conversion to integer'''
+    #Convert
+    received = ytacommon.toInt(var)
     #Compare
     assert received == expected
 # ########################################################################### #
