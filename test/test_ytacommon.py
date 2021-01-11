@@ -67,7 +67,7 @@ def test_upgradeDatabaseV3(version):
     #Verify added video columns
     r = db.execute("UPDATE videos SET language=?,width=?,height=?,resolution=? WHERE id = 1", ("en",1920,1080,"Full HD"))
     assert r.rowcount == 1
-    #Veriy added channel column
+    #Verify added channel column
     r = db.execute("SELECT maxresolution FROM channel ORDER BY id DESC LIMIT 1;")
     assert r.fetchone()[0] == "default"
     #Close and remove database
@@ -172,7 +172,7 @@ def createNewTestDB(path):
     #Create video table
     ytacommon.createVideoTable(dbCon)
     insert = "INSERT INTO videos(title,creator,date,timestamp,youtubeID,filename,checksum,language,width,height,resolution,statisticsupdated,filesize) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)"
-    dbCon.execute(insert, ("Test", "Test", "2020-01-01", 1577836800, "abcdefghijk", "test.mp4", "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "en", 1920, 1080, "Full HD", 1577836800, 1000000))
+    dbCon.execute(insert, ("Test", "Test", "2020-01-01", 1577836800, "test", "test.mp4", "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", "en", 1920, 1080, "Full HD", 1577836800, 1000000))
     #Create channel table
     ytacommon.createChannelTable(dbCon)
     insert = "INSERT INTO channel(name, url, playlist, language, videos, lastupdate, dbversion, maxresolution, totalsize) VALUES(?,?,?,?,?,?,?,?,?)"

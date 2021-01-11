@@ -40,7 +40,7 @@ def pytest_sessionfinish(session, exitstatus):
 @pytest.fixture()
 def apikey(capsys):
     '''Read or ask for Youtube API key for testing'''
-    #Check if envorinment already contains a test API key
+    #Check if environment already contains a test API key
     if os.environ.get("YTA_TEST_APIKEY"):
         #Noting to do
         return
