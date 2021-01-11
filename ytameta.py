@@ -41,8 +41,6 @@ def addMetadata(args):
     #Connect to database
     dbCon = yta.connectDB(dbPath)
     db = dbCon.cursor()
-    #Modify database
-    modifyDatabase(db)
     #Save thumbnails to database
     r = db.execute("SELECT youtubeID FROM videos;")
     for item in r.fetchall():
@@ -121,21 +119,6 @@ def getMetadata(youtubeID):
         statisticsUpdated = None
     #Return results
     return [timestamp, duration, tags, description, viewCount, likeCount, dislikeCount, statisticsUpdated]
-# ########################################################################### #
-
-# --------------------------------------------------------------------------- #
-def modifyDatabase(db):
-    '''Add duration and tags columns to videos table of they
-    don't exist already
-
-    :param db: Connection to the metadata database
-    :type db: sqlite3.Cursor
-    '''
-    try:
-        db.execute('ALTER TABLE videos ADD COLUMN duration INTEGER;')
-        db.execute('ALTER TABLE videos ADD COLUMN tags TEXT;')
-    except sqlite3.Error:
-        pass
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
