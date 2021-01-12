@@ -5,9 +5,11 @@ import os
 import sqlite3
 import string
 import random
+import socket
 from shutil import copyfile
 import pytest
 from appdirs import user_data_dir
+from requests.exceptions import ConnectionError
 
 # --------------------------------------------------------------------------- #
 def pytest_configure(config):
@@ -119,4 +121,38 @@ def dbCon(request):
 def db(dbCon):
     '''Get a database cursor to the database given via the "internal_path" marker'''
     return dbCon.cursor()
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def disableRequests():
+    '''Disable requests by throwing requests.exceptions.ConnectionError'''
+    true = disRequests()
+    yield
+    enRequests(true)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture(autouse=True)
+def _disableRequestsMarker(request):
+    if request.node.get_closest_marker('disable_requests'):
+        request.getfixturevalue('disableRequests')
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def disRequests():
+    '''Disable requests by raising a requests.exceptions.ConnectionError when
+    a socket connection is being established, return true socket for later reset
+    '''
+    def raiseExp(*args, **kwargs):
+        raise ConnectionError
+    trueSocket = socket.socket
+    socket.socket = raiseExp
+    return trueSocket
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def enRequests(trueSocket):
+    '''Re-enable requests by returning socket.socket to its normal state'''
+    socket.socket = trueSocket
 # ########################################################################### #
