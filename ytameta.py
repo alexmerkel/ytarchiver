@@ -508,7 +508,7 @@ def connectUpdateCreateStatisticsDB(directory):
                 dbCon.execute("pragma encoding=UTF8")
                 #Create tables
                 cmd = """ CREATE TABLE setup (
-                              id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                              id INTEGER PRIMARY KEY UNIQUE NOT NULL,
                               autoupdate BOOLEAN NOT NULL,
                               lastupdate INTEGER NOT NULL,
                               maxcount INTEGER NOT NULL,
@@ -516,7 +516,7 @@ def connectUpdateCreateStatisticsDB(directory):
                           ); """
                 dbCon.execute(cmd)
                 cmd = """ CREATE TABLE channels (
-                              id INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                              id INTEGER PRIMARY KEY UNIQUE NOT NULL,
                               name STRING UNIQUE NOT NULL,
                               lastupdate INTEGER NOT NULL,
                               complete BOOLEAN NOT NULL
