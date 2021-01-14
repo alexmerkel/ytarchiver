@@ -6,10 +6,10 @@ import sqlite3
 import string
 import random
 import socket
-from shutil import copyfile
+import shutil
 import pytest
 from appdirs import user_data_dir
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError as rConnectionError
 
 # --------------------------------------------------------------------------- #
 def pytest_configure(config):
@@ -36,6 +36,18 @@ def pytest_sessionfinish(session, exitstatus):
         del os.environ["YTA_TESTDATA"]
     except KeyError:
         pass
+    try:
+        del os.environ["YTA_TEST_APIKEY"]
+    except KeyError:
+        pass
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture(autouse=True)
+def _tubeMarker(request):
+    '''Add apikey fixture if the tube marker is used'''
+    if request.node.get_closest_marker("tube"):
+        request.getfixturevalue("apikey")
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -48,6 +60,7 @@ def apikey(capsys):
         return
     #Try reading from user data dir (e.g. /usr/local/share, /Library/Application Support)
     apiFile = os.path.join(user_data_dir("ytarchiver", "yta"), "yttestapikey")
+    apiKey = None
     try:
         with open(apiFile) as f:
             #Read first line
@@ -59,8 +72,6 @@ def apikey(capsys):
                     break
                 #Read next line
                 line = f.readline().strip()
-            #Either no lines or only comments
-            apiKey = None
     except OSError:
         #No api key
         apiKey = None
@@ -68,12 +79,34 @@ def apikey(capsys):
     if not apiKey:
         with capsys.disabled():
             print("ERROR: No testing API key available!")
-            print("INFO: Add it to the \'{}\' file,".format(apiFile))
+            print("INFO: Add it to the \"{}\" file,".format(apiFile))
             print("INFO: to the $YTA_TEST_APIKEY environment variable,")
             print("INFO: or use \'-m \"not tube\"\' option to skip tests that require an API key")
         pytest.exit("Missing Youtube API key for testing", 3)
     #Save result
     os.environ["YTA_TEST_APIKEY"] = apiKey
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def temparchive(request):
+    '''Creates a temporary archive by copying the database given via the
+    "internal_path" marker into a temp directory and renaming it to archive.db,
+    rewrites the "internal_path" to the new temporary directory and
+    delete it afterwards
+    '''
+    #Read path
+    dbPath = request.node.get_closest_marker("internal_path").args[0]
+    #Create temporary archive directory
+    tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
+    os.mkdir(tempPath)
+    #Copy database to archive and change marker
+    shutil.copyfile(dbPath, os.path.join(tempPath, "archive.db"))
+    request.node.add_marker(pytest.mark.internal_path(tempPath), False)
+    #Wait for test to finish
+    yield
+    #Remove temporary archive
+    shutil.rmtree(tempPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -90,7 +123,7 @@ def tempcopy(request):
     tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10)+ext)
     request.node.add_marker(pytest.mark.internal_path(tempPath), False)
     #Copy file
-    copyfile(origPath, tempPath)
+    shutil.copyfile(origPath, tempPath)
     #Wait for test to finish
     yield
     #Remove temporary file
@@ -135,8 +168,8 @@ def disableRequests():
 # --------------------------------------------------------------------------- #
 @pytest.fixture(autouse=True)
 def _disableRequestsMarker(request):
-    if request.node.get_closest_marker('disable_requests'):
-        request.getfixturevalue('disableRequests')
+    if request.node.get_closest_marker("disable_requests"):
+        request.getfixturevalue("disableRequests")
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -145,7 +178,7 @@ def disRequests():
     a socket connection is being established, return true socket for later reset
     '''
     def raiseExp(*args, **kwargs):
-        raise ConnectionError
+        raise rConnectionError
     trueSocket = socket.socket
     socket.socket = raiseExp
     return trueSocket

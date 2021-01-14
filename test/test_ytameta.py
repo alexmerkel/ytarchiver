@@ -5,17 +5,66 @@ import os
 import time
 import pytest
 import utils
+import sqlite3
+from requests.exceptions import RequestException
 
 import ytameta
 
 # --------------------------------------------------------------------------- #
+@pytest.mark.network
+@pytest.mark.tube
+@pytest.mark.parametrize("expException", [False, pytest.param(True, marks=pytest.mark.disable_requests)],
+    ids=["network", "nonetwork"])
 @pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv7.db"))
-def test_youtube(tempcopy, db):
-    '''Youtube test'''
-    print("func")
-    r = db.execute("SELECT dbversion FROM channel ORDER BY id DESC LIMIT 1;")
-    assert r.fetchone()[0] == 7
-    print("func end")
+def test_addMetadata(request, capsys, temparchive, expException):
+    '''Test adding the metadata from the Youtube API to the database'''
+    #Remove metadata from database
+    path = request.node.get_closest_marker("internal_path").args[0]
+    db = sqlite3.connect(os.path.join(path, "archive.db"))
+    db.execute("UPDATE videos SET timestamp = 0, duration = 0, tags = \"\";")
+    db.commit()
+    db.close()
+    #Check if exception expected
+    if expException:
+        ytameta.addMetadata([path])
+        captured = capsys.readouterr()
+        assert captured.out.startswith("ERROR: Unable to load metadata for")
+    else:
+        #Add metadata
+        ytameta.addMetadata([path])
+        #Compare
+        db = sqlite3.connect(os.path.join(path, "archive.db"))
+        assert len(db.execute("SELECT id FROM videos WHERE duration != 60;").fetchall()) == 0
+        assert len(db.execute("SELECT id FROM videos WHERE timestamp >= 1609286401 and timestamp <= 1609304400;").fetchall()) == 6
+        assert len(db.execute("SELECT id FROM videos WHERE tags = \"\";").fetchall()) == 0
+        assert db.execute("SELECT tags FROM videos WHERE id = 1;").fetchone()[0] == "example\none\nvideo\ntest"
+        db.close()
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.mark.network
+@pytest.mark.tube
+@pytest.mark.parametrize("expException", [False, pytest.param(True, marks=pytest.mark.disable_requests)],
+    ids=["network", "nonetwork"])
+def test_getMetadata(capsys, expException):
+    '''Test getting the metadata from the Youtube API'''
+    #Get metadata
+    if expException:
+        with pytest.raises(RequestException):
+            ytameta.getMetadata("0-cN7NVjXxc")
+    else:
+        #Test video with metadata
+        t1 = int(time.time())
+        received = ytameta.getMetadata("0-cN7NVjXxc")
+        t2 = int(time.time())
+        #Compare
+        assert received[0:4] == [1609286401, 60, "example\none\nvideo\ntest", "The first example video\n\n0:00 Grow one\n0:30 Halt one\n0:45 Shrink one\n\nLD\nCaptions\n\nGoodbye"]
+        assert t1 <= received[7] <= t2
+        #Test nonexisting video
+        received = ytameta.getMetadata("01234567890")
+        captured = capsys.readouterr()
+        assert captured.out == "WARNING: No metadata available for 01234567890\n"
+        assert received == [None] * 8
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

@@ -28,7 +28,7 @@ def addMetadata(args):
     #Get database path
     parser = argparse.ArgumentParser(prog="ytameta", description="Add additional metadata to existing archive databases")
     parser.add_argument("DIR", help="The directory containing the archive database to work on")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     path = os.path.normpath(os.path.abspath(args.DIR))
     dbPath = os.path.join(path, "archive.db")
