@@ -111,6 +111,37 @@ def temparchive(request):
 
 # --------------------------------------------------------------------------- #
 @pytest.fixture
+def tempallarchive(request):
+    '''Creates a temporary directory of archives by copying the database given via
+    the "internal_path" marker into 3 temp subdirectory and renaming them to
+    archive.db, rewrites the "internal_path" to the new temporary directory and
+    delete it afterwards
+    '''
+    #Read path
+    dbPath = request.node.get_closest_marker("internal_path").args[0]
+    #Create temporary main directory
+    tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
+    os.mkdir(tempPath)
+    #Create archive subdirectories and copy the database
+    for i in range(1, 4):
+        subPath = os.path.join(tempPath, str(i))
+        os.mkdir(subPath)
+        subDB = os.path.join(subPath, "archive.db")
+        shutil.copyfile(dbPath, subDB)
+        _db = sqlite3.connect(subDB)
+        _db.execute("UPDATE channel SET name = (SELECT name FROM channel WHERE id = 1) || ?;", (" {}".format(i),))
+        _db.commit()
+        _db.close()
+    #Cahnge marker
+    request.node.add_marker(pytest.mark.internal_path(tempPath), False)
+    #Wait for test to finish
+    yield
+    #Remove temporary archive
+    shutil.rmtree(tempPath)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture
 def tempcopy(request):
     '''Creates a temporary copy of the file given via the "internal_path"
     marker, rewrites the "internal_path" to the new temporary file and

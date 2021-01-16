@@ -3,6 +3,7 @@
 
 import os
 import time
+import shutil
 import pytest
 import utils
 import sqlite3
@@ -39,6 +40,140 @@ def test_addMetadata(request, capsys, temparchive, expException):
         assert len(db.execute("SELECT id FROM videos WHERE tags = \"\";").fetchall()) == 0
         assert db.execute("SELECT tags FROM videos WHERE id = 1;").fetchone()[0] == "example\none\nvideo\ntest"
         db.close()
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.mark.network
+@pytest.mark.tube
+@pytest.mark.parametrize("mode", ["normal", "sub", "amendsub", pytest.param("network", marks=pytest.mark.disable_requests)],
+    ids=["normal", "checksub", "amendsub", "network"])
+@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv7.db"))
+def test_updateStatistics(capsys, tempcopy, db, mode):
+    '''Test updating the video statistics via the Youtube API'''
+    #Switch by mode
+    #Test the ability to update the statistics
+    if mode == "normal":
+        #Set viewcount to 0 for comparison
+        db.execute("UPDATE videos SET viewcount = 0;")
+        #Update the statistics
+        t1 = int(time.time())
+        ytameta.updateStatistics(db)
+        t2 = int(time.time())
+        #Compare
+        assert len(db.execute("SELECT id FROM videos WHERE viewcount > 0;").fetchall()) == 6
+        assert len(db.execute("SELECT id FROM videos WHERE statisticsupdated >= ? and statisticsupdated <= ?;", (t1, t2)).fetchall()) == 6
+    #Test the ability to print missing subtitles
+    elif mode == "sub":
+        #Prepare database
+        db.execute("UPDATE videos SET subtitles = ? WHERE id = 1;", (None,))
+        #Update statistics
+        ytameta.updateStatistics(db, checkCaptions=True)
+        #Compare
+        captured = capsys.readouterr()
+        assert captured.out == "INFO: Video [0-cN7NVjXxc] \"Example 1\" had captions added since archiving\n"
+    #Test the ability to amend missing subtitles
+    elif mode == "amendsub":
+        #Prepare database
+        db.execute("UPDATE videos SET subtitles = ? WHERE id = 1;", (None,))
+        #Update statistics
+        ytameta.updateStatistics(db, amendCaptions=True)
+        #Compare
+        received = db.execute("SELECT subtitles FROM videos WHERE id = 1;").fetchone()[0]
+        assert received.startswith("WEBVTT\nKind: captions\nLanguage: en\n\n00:00:00.000 --> 00:00:00.900\n")
+        assert len(received) == 358
+    #Test the exception is thrown correctly
+    elif mode == "network":
+        with pytest.raises(RequestException):
+            ytameta.updateStatistics(db)
+# ########################################################################### #
+
+@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv7.db"))
+def test_test(capsys, tempallarchive):
+    pass
+
+# --------------------------------------------------------------------------- #
+@pytest.mark.network
+@pytest.mark.tube
+@pytest.mark.parametrize("mode", ["normal", "none", "sub", "amendsub", pytest.param("network", marks=pytest.mark.disable_requests)],
+    ids=["normal", "none", "checksub", "amendsub", "network"])
+@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv7.db"))
+def test_updateAllStatistics(request, capsys, tempallarchive, mode):
+    '''Test updating the video statistics via the Youtube API'''
+    #Get archive path
+    path = request.node.get_closest_marker("internal_path").args[0]
+    subdirs = [os.path.join(path, name) for name in os.listdir(path) if os.path.isdir(os.path.join(path, name))]
+    #Switch by mode
+    #Test the ability to update the statistics
+    if mode == "normal":
+        #Update the statistics
+        t1 = int(time.time())
+        ytameta.updateAllStatistics(path)
+        t2 = int(time.time())
+        #Compare
+        for subdir in subdirs:
+            db = sqlite3.connect(os.path.join(subdir, "archive.db"))
+            assert len(db.execute("SELECT id FROM videos WHERE statisticsupdated >= ? and statisticsupdated <= ?;", (t1, t2)).fetchall()) == 6
+            db.close()
+        db = sqlite3.connect(os.path.join(path, "statistics.db"))
+        assert len(db.execute("SELECT id FROM channels WHERE lastupdate >= ? and lastupdate <= ?;", (t1, t2)).fetchall()) == len(subdirs)
+        assert t1 <= db.execute("SELECT lastupdate FROM setup WHERE id = 1;").fetchone()[0] <= t2
+    #Test error message when no archive subdirectory available
+    elif mode == "none":
+        #Rename archive databases
+        for subdir in subdirs:
+            try:
+                os.rename(os.path.join(subdir, "archive.db"), os.path.join(subdir, "archive1.db"))
+            except OSError:
+                pass
+        #Update statistics
+        ytameta.updateAllStatistics(path, automatic=False)
+        #Compare
+        captured = capsys.readouterr()
+        lines = captured.out.splitlines()
+        assert lines[-2].strip() == "UPDATING VIDEO STATISTICS"
+        assert lines[-1].strip() == "ERROR: No subdirs with archive databases at \'{}\'".format(path)
+        #Remove subdirs
+        for subdir in subdirs:
+            shutil.rmtree(subdir)
+        #Update statistics
+        ytameta.updateAllStatistics(path, automatic=True)
+        captured = capsys.readouterr()
+        lines = captured.out.splitlines()
+        assert lines[-2].strip() == "UPDATING VIDEO STATISTICS DUE TO DATABASE OPTION"
+        assert lines[-1].strip() == "ERROR: No subdirs with archive databases at \'{}\'".format(path)
+    #Test the ability to print or amend missing subtitles
+    elif mode in ("sub", "amendsub"):
+        #Prepare archives
+        for subdir in subdirs:
+            db = sqlite3.connect(os.path.join(subdir, "archive.db"))
+            db.execute("UPDATE videos SET subtitles = ? WHERE id = 1;", (None,))
+            db.commit()
+            db.close()
+        #Just print the missing captions
+        if mode == "sub":
+            #Update statistics
+            ytameta.updateAllStatistics(path, captions=True)
+            captured = capsys.readouterr()
+            lines = captured.out.splitlines()
+            assert len([s for s in lines if s.strip() == "INFO: Video [0-cN7NVjXxc] \"Example 1\" had captions added since archiving"]) == 3
+        #Amend the missing captions
+        else:
+            #Update statistics
+            ytameta.updateAllStatistics(path, amendCaptions=True)
+            captured = capsys.readouterr()
+            lines = captured.out.splitlines()
+            assert len([s for s in lines if s.strip() == "INFO: Added subtitle \"en\" for video \"0-cN7NVjXxc\" to the database"]) == 3
+            for subdir in subdirs:
+                db = sqlite3.connect(os.path.join(subdir, "archive.db"))
+                received = db.execute("SELECT subtitles FROM videos WHERE id = 1;").fetchone()[0]
+                assert received.startswith("WEBVTT\nKind: captions\nLanguage: en\n\n00:00:00.000 --> 00:00:00.900\n")
+                assert len(received) == 358
+                db.close()
+    #Test the exception is thrown correctly
+    elif mode == "network":
+        ytameta.updateAllStatistics(path)
+        captured = capsys.readouterr()
+        assert captured.out.splitlines()[-1].startswith("ERROR: Network error while trying to update the statistics")
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

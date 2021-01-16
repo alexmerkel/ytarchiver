@@ -127,8 +127,8 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
 
     :param db: Connection to the archive database
     :type db: sqlite3.Cursor
-    :param youngerTimestamp: Only videos with an update timestamp younger than this one will be updated (Default: max 64-bit int)
-    :type lastUpdateTimestamp: integer, optional
+    :param youngerTimestamp: Only return incomplete if videos with a timestamp earlier than this one were not updated (Default: max 64-bit int)
+    :type youngerTimestamp: integer, optional
     :param checkCaptions: Whether to check if captions were added since archiving the video (Default: False)
     :type checkCaptions: boolean, option
     :param count: Max number of videos to update (Default: max 64-bit int)
@@ -177,8 +177,6 @@ def updateStatistics(db, youngerTimestamp=sys.maxsize, checkCaptions=False, coun
         if not videos:
             completed = True
             break
-        #Get video ids
-        ids = [video[1] for video in videos]
         #Create result dict and ids list
         ids = []
         vids = {}
@@ -342,7 +340,11 @@ def updateAllStatistics(path, automatic=False, captions=False, amendCaptions=Fal
             skippedSubdirs.append(subdir)
             continue
         #Update statistics
-        maxcount = updateSubdirStatistics(db, subdir, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey)
+        try:
+            maxcount = _updateSubdirStatistics(db, subdir, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey)
+        except requests.exceptions.RequestException as e:
+            print("ERROR: Network error while trying to update the statistics (\"{}\")".format(e))
+            return
 
     #Loop through skipped subdirs
     i = 0
@@ -358,7 +360,11 @@ def updateAllStatistics(path, automatic=False, captions=False, amendCaptions=Fal
         lastupdate, complete = channels[name]
         #Update statistics
         print("({}/{}) ".format(i, count), end='')
-        maxcount = updateSubdirStatistics(db, subdir, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey)
+        try:
+            maxcount = _updateSubdirStatistics(db, subdir, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey)
+        except requests.exceptions.RequestException as e:
+            print("ERROR: Network error while trying to update the statistics (\"{}\")".format(e))
+            return
 
     #Write lastupdate to statistics database
     db.execute("UPDATE setup SET lastupdate = ? WHERE id = 1", (updateStarted,))
@@ -367,7 +373,7 @@ def updateAllStatistics(path, automatic=False, captions=False, amendCaptions=Fal
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
-def updateSubdirStatistics(db, path, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey):
+def _updateSubdirStatistics(db, path, name, captions, amendCaptions, maxcount, lastupdate, complete, apiKey):
     '''Update the statistics for one subdir
 
     :param db: Connection to the statistics database
@@ -398,13 +404,9 @@ def updateSubdirStatistics(db, path, name, captions, amendCaptions, maxcount, la
     print("Updating \"{}\"".format(name))
     #Connect to channel database
     channelDB = yta.connectDB(os.path.join(path, "archive.db"))
-    #First update the stats missed last time
+    #Perform update
     updateTimestamp = int(time.time())
-    if not complete:
-        maxcount, complete = updateStatistics(channelDB, lastupdate, captions, maxcount, apiKey, amendCaptions)
-    #If counts left, update the other ones
-    if complete and maxcount > 0:
-        maxcount, complete = updateStatistics(channelDB, updateTimestamp, captions, maxcount, apiKey, amendCaptions)
+    maxcount, complete = updateStatistics(channelDB, lastupdate, captions, maxcount, apiKey, amendCaptions)
     #Close channel db
     yta.closeDB(channelDB)
     #Write new info to database
