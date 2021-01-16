@@ -11,6 +11,8 @@ import pytest
 from appdirs import user_data_dir
 from requests.exceptions import ConnectionError as rConnectionError
 
+LATEST_DB = "dbv7.db"
+
 # --------------------------------------------------------------------------- #
 def pytest_configure(config):
     '''Called by pytest after the command line options have been parsed'''
@@ -22,6 +24,7 @@ def pytest_sessionstart(session):
     #Set environment variable for testing
     os.environ["YTA_TEST"] = "TRUE"
     os.environ["YTA_TESTDATA"] = os.path.join(os.path.dirname(__file__), "testdata")
+    os.environ["YTA_TEST_LATESTDB"] = LATEST_DB
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -30,14 +33,6 @@ def pytest_sessionfinish(session, exitstatus):
     #Unset testing environment variable
     try:
         del os.environ["YTA_TEST"]
-    except KeyError:
-        pass
-    try:
-        del os.environ["YTA_TESTDATA"]
-    except KeyError:
-        pass
-    try:
-        del os.environ["YTA_TEST_APIKEY"]
     except KeyError:
         pass
 # ########################################################################### #
@@ -110,12 +105,19 @@ def temparchive(request):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
+@pytest.fixture(autouse=True)
+def _temparchiveMarker(request):
+    if request.node.get_closest_marker("temp_archive"):
+        request.getfixturevalue("temparchive")
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 @pytest.fixture
 def tempallarchive(request):
     '''Creates a temporary directory of archives by copying the database given via
     the "internal_path" marker into 3 temp subdirectory and renaming them to
-    archive.db, rewrites the "internal_path" to the new temporary directory and
-    delete it afterwards
+    archive.db, rewrites the "internal_path" to the new temporary directory, and
+    deletes it afterwards
     '''
     #Read path
     dbPath = request.node.get_closest_marker("internal_path").args[0]
@@ -141,11 +143,18 @@ def tempallarchive(request):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
+@pytest.fixture(autouse=True)
+def _tempallarchiveMarker(request):
+    if request.node.get_closest_marker("temp_allarchive"):
+        request.getfixturevalue("tempallarchive")
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 @pytest.fixture
 def tempcopy(request):
     '''Creates a temporary copy of the file given via the "internal_path"
-    marker, rewrites the "internal_path" to the new temporary file and
-    delete it afterwards
+    marker, rewrites the "internal_path" to the new temporary file, and
+    deletes it afterwards
     '''
     #Read path
     origPath = request.node.get_closest_marker("internal_path").args[0]
@@ -159,6 +168,23 @@ def tempcopy(request):
     yield
     #Remove temporary file
     os.remove(tempPath)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def tempdir(request):
+    '''Creates a temporary directory, writes its path to the "internal_path2"
+    marker, and deletes the directory afterwards
+    '''
+    #Create temporary directory
+    tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
+    os.mkdir(tempPath)
+    #Change marker
+    request.node.add_marker(pytest.mark.internal_path2(tempPath), False)
+    #Wait for test to finish
+    yield
+    #Remove temporary file
+    shutil.rmtree(tempPath)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

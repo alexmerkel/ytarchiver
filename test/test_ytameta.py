@@ -16,7 +16,7 @@ import ytameta
 @pytest.mark.tube
 @pytest.mark.parametrize("expException", [False, pytest.param(True, marks=pytest.mark.disable_requests)],
     ids=["network", "nonetwork"])
-@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv7.db"))
+@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", os.environ["YTA_TEST_LATESTDB"]))
 def test_addMetadata(request, capsys, temparchive, expException):
     '''Test adding the metadata from the Youtube API to the database'''
     #Remove metadata from database
@@ -47,7 +47,7 @@ def test_addMetadata(request, capsys, temparchive, expException):
 @pytest.mark.tube
 @pytest.mark.parametrize("mode", ["normal", "sub", "amendsub", pytest.param("network", marks=pytest.mark.disable_requests)],
     ids=["normal", "checksub", "amendsub", "network"])
-@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv7.db"))
+@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", os.environ["YTA_TEST_LATESTDB"]))
 def test_updateStatistics(capsys, tempcopy, db, mode):
     '''Test updating the video statistics via the Youtube API'''
     #Switch by mode
@@ -87,7 +87,7 @@ def test_updateStatistics(capsys, tempcopy, db, mode):
             ytameta.updateStatistics(db)
 # ########################################################################### #
 
-@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv7.db"))
+@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", os.environ["YTA_TEST_LATESTDB"]))
 def test_test(capsys, tempallarchive):
     pass
 
@@ -96,7 +96,7 @@ def test_test(capsys, tempallarchive):
 @pytest.mark.tube
 @pytest.mark.parametrize("mode", ["normal", "none", "sub", "amendsub", pytest.param("network", marks=pytest.mark.disable_requests)],
     ids=["normal", "none", "checksub", "amendsub", "network"])
-@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", "dbv7.db"))
+@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", os.environ["YTA_TEST_LATESTDB"]))
 def test_updateAllStatistics(request, capsys, tempallarchive, mode):
     '''Test updating the video statistics via the Youtube API'''
     #Get archive path
