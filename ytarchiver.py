@@ -41,7 +41,7 @@ def archive(args, parsed=False):
         parser.add_argument("LANG", nargs='?', help="The video language (read from the database if not given)")
         parser.add_argument("-f", "--file", action="store", dest="file", help="Read IDs to archive from a batch file with one ID per line")
         parser.add_argument("VIDEO", nargs='?', help="The Youtube video or playlist ID (read from the database if not given)")
-        args = parser.parse_args()
+        args = parser.parse_args(args)
 
     #Check if API key provided
     yta.getAPIKey(True)

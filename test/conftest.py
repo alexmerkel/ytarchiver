@@ -11,7 +11,12 @@ import pytest
 from appdirs import user_data_dir
 from requests.exceptions import ConnectionError as rConnectionError
 
+import ytarchiver
+
 LATEST_DB = "dbv7.db"
+
+temp_complete_archive = None
+temp_complete_allarchive = None
 
 # --------------------------------------------------------------------------- #
 def pytest_configure(config):
@@ -34,6 +39,15 @@ def pytest_sessionfinish(session, exitstatus):
     try:
         del os.environ["YTA_TEST"]
     except KeyError:
+        pass
+    #Remove complete archives if they exist
+    try:
+        shutil.rmtree(temp_complete_archive)
+    except TypeError:
+        pass
+    try:
+        shutil.rmtree(temp_complete_allarchive)
+    except TypeError:
         pass
 # ########################################################################### #
 
@@ -130,16 +144,21 @@ def tempallarchive(request):
         os.mkdir(subPath)
         subDB = os.path.join(subPath, "archive.db")
         shutil.copyfile(dbPath, subDB)
-        _db = sqlite3.connect(subDB)
-        _db.execute("UPDATE channel SET name = (SELECT name FROM channel WHERE id = 1) || ?;", (" {}".format(i),))
-        _db.commit()
-        _db.close()
+        _renameChannelCopy(subDB, " {}".format(i))
     #Cahnge marker
     request.node.add_marker(pytest.mark.internal_path(tempPath), False)
     #Wait for test to finish
     yield
     #Remove temporary archive
     shutil.rmtree(tempPath)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def _renameChannelCopy(dbPath, suffix):
+    _db = sqlite3.connect(dbPath)
+    _db.execute("UPDATE channel SET name = (SELECT name FROM channel WHERE id = 1) || ?;", (suffix,))
+    _db.commit()
+    _db.close()
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -191,6 +210,104 @@ def tempdir(request):
 def generateRandom(length, chars=string.hexdigits):
     '''Generate a random string of given length, not cryptographically secure'''
     return ''.join(random.choice(chars) for _ in range(length))
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def tempcompletearchive(request):
+    '''If temp_complete_archive is not set already, it  will copy the database from
+    "internal_path" to a temp folder, remove all videos from the database and run
+    ytarchiver with a -hd flag to download all vides again (in HD quality or
+    lower to save time). Afterwards, the path is saved to temp_complete_archive
+    and to the "internal_path" marker. If temp_complete_archive is set, only
+    the "internal_path" will be updated
+    '''
+    #Create full archive
+    dbPath = request.node.get_closest_marker("internal_path").args[0]
+    _getcompletearchive(dbPath)
+    #Create a copy of the complete archive and save that to the marker
+    tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
+    shutil.copytree(temp_complete_archive, tempPath)
+    request.node.add_marker(pytest.mark.internal_path(temp_complete_archive), False)
+    #Wait for test to finish
+    yield
+    #Delete temp copy
+    shutil.rmtree(tempPath)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture(autouse=True)
+def _tempcompletearchiveMarker(request):
+    if request.node.get_closest_marker("temp_completearchive"):
+        request.getfixturevalue("tempcompletearchive")
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+def _getcompletearchive(origDB):
+    '''Copy the db to path, remove all videos from db and redownload them
+    using ytarchiver -hd
+    '''
+    global temp_complete_archive
+    #Check if already downloaded
+    if not temp_complete_archive:
+        #Prepare
+        tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
+        os.mkdir(tempPath)
+        dbPath = os.path.join(tempPath, "archive.db")
+        shutil.copyfile(origDB, dbPath)
+        #Remove videos from database
+        _db = sqlite3.connect(dbPath)
+        _db.execute("DELETE FROM videos;")
+        _db.execute("UPDATE channel SET playlist = \"PL0Stv0eTj3NuNh_dwtgScHauYOiTO35KX\" WHERE id = 1;") #Shorter playlist, only 3 videos
+        _db.commit()
+        _db.close()
+        #Download
+        ytarchiver.archive(['-hd', tempPath])
+        #Save path
+        temp_complete_archive = tempPath
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def tempcompleteallarchive(request, capsys):
+    '''If temp_complete_allarchive is not set already, it  will copy the database from
+    "internal_path" to a temp folder, remove all videos from the database and run
+    ytarchiver with a -hd flag to download all vides again (in HD quality or
+    lower to save time). Afterwards, the path is saved to temp_complete_archive.
+    Then the diretory is copied multiple times to a new temporary directory,
+    each "channel" is renamed, the new path is saved to temp_complete_allarchive
+    and to the "internal_path" marker. If temp_complete_allarchive is set, only
+    the "internal_path" will be updated
+    '''
+    global temp_complete_allarchive
+    #Check if already downloaded
+    if not temp_complete_allarchive:
+        tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
+        #Create single archive first
+        dbPath = request.node.get_closest_marker("internal_path").args[0]
+        with capsys.disabled():
+            _getcompletearchive(dbPath)
+        #Copy directory three times and rename it
+        for i in range(1, 4):
+            subPath = os.path.join(tempPath, str(i))
+            shutil.copytree(temp_complete_archive, subPath)
+            _renameChannelCopy(os.path.join(subPath, "archive.db"), " {}".format(i))
+        temp_complete_allarchive = tempPath
+    #Create a copy of the complete archive and save that to the marker
+    tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
+    shutil.copytree(temp_complete_allarchive, tempPath)
+    request.node.add_marker(pytest.mark.internal_path(temp_complete_allarchive), False)
+    #Wait for test to finish
+    yield
+    #Delete temp copy
+    shutil.rmtree(tempPath)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
+@pytest.fixture(autouse=True)
+def _tempcompleteallarchiveMarker(request):
+    if request.node.get_closest_marker("temp_completeallarchive"):
+        request.getfixturevalue("tempcompleteallarchive")
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
