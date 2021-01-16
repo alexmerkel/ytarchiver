@@ -21,7 +21,7 @@ def backup(args):
     parser = argparse.ArgumentParser(prog="ytabackup", description="Backup the archive database")
     parser.add_argument("-a", "--all", action="store_const", dest="all", const=True, default=False, help="Run backup for all subdirectories with archive databases. In this mode, the backups are stored in a central folder")
     parser.add_argument("DIR", help="The directory to work in")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     #Validate path
     path = os.path.normpath(os.path.abspath(args.DIR))
@@ -75,8 +75,8 @@ def backupDB(dbPath, backupDir):
 
     :param dbPath: Path of the database to back up
     :type dbPath: string
-    :param directory: Path of the directory in which to store backup
-    :type directory: string
+    :param backupDir: Path of the directory in which to store backup
+    :type backupDir: string
 
     :raises: :class:``sqlite3.Error: Unable to backup database
 
@@ -120,11 +120,11 @@ def checkDB(con):
     :returns: True if check passed, otherwise False
     :rtype: boolean
     '''
-    r = con.execute("pragma integrity_check;")
-    res = r.fetchall()
     try:
+        r = con.execute("pragma integrity_check;")
+        res = r.fetchall()
         return res[0][0] == "ok"
-    except IndexError:
+    except (sqlite3.DatabaseError, IndexError):
         return False
 # ########################################################################### #
 
