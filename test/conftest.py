@@ -13,7 +13,7 @@ from requests.exceptions import ConnectionError as rConnectionError
 
 import ytarchiver
 
-LATEST_DB = "dbv7.db"
+LATEST_DB = 7
 
 temp_complete_archive = None
 temp_complete_allarchive = None
@@ -29,7 +29,7 @@ def pytest_sessionstart(session):
     #Set environment variable for testing
     os.environ["YTA_TEST"] = "TRUE"
     os.environ["YTA_TESTDATA"] = os.path.join(os.path.dirname(__file__), "testdata")
-    os.environ["YTA_TEST_LATESTDB"] = LATEST_DB
+    os.environ["YTA_TEST_LATESTDB"] = "dbv{}.db".format(LATEST_DB)
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
@@ -228,7 +228,7 @@ def tempcompletearchive(request):
     #Create a copy of the complete archive and save that to the marker
     tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
     shutil.copytree(temp_complete_archive, tempPath)
-    request.node.add_marker(pytest.mark.internal_path(temp_complete_archive), False)
+    request.node.add_marker(pytest.mark.internal_path(tempPath), False)
     #Wait for test to finish
     yield
     #Delete temp copy
@@ -269,7 +269,7 @@ def _getcompletearchive(origDB):
 
 # --------------------------------------------------------------------------- #
 @pytest.fixture
-def tempcompleteallarchive(request, capsys):
+def tempcompleteallarchive(request):
     '''If temp_complete_allarchive is not set already, it  will copy the database from
     "internal_path" to a temp folder, remove all videos from the database and run
     ytarchiver with a -hd flag to download all vides again (in HD quality or
@@ -285,8 +285,7 @@ def tempcompleteallarchive(request, capsys):
         tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
         #Create single archive first
         dbPath = request.node.get_closest_marker("internal_path").args[0]
-        with capsys.disabled():
-            _getcompletearchive(dbPath)
+        _getcompletearchive(dbPath)
         #Copy directory three times and rename it
         for i in range(1, 4):
             subPath = os.path.join(tempPath, str(i))
@@ -296,7 +295,7 @@ def tempcompleteallarchive(request, capsys):
     #Create a copy of the complete archive and save that to the marker
     tempPath = os.path.join(os.environ["YTA_TESTDATA"], "temp_"+generateRandom(10))
     shutil.copytree(temp_complete_allarchive, tempPath)
-    request.node.add_marker(pytest.mark.internal_path(temp_complete_allarchive), False)
+    request.node.add_marker(pytest.mark.internal_path(tempPath), False)
     #Wait for test to finish
     yield
     #Delete temp copy

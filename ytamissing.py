@@ -17,7 +17,7 @@ def findMissing(args):
     '''
     parser = argparse.ArgumentParser(prog="ytamissing", description="Find discrepancies between files and archive database in directory")
     parser.add_argument("DIR", help="The directory to work on")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     path = os.path.normpath(os.path.abspath(args.DIR))
     if not os.path.isdir(path):
         parser.error("DIR must be a directory")
