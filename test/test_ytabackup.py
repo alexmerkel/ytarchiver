@@ -27,11 +27,13 @@ def test_backup(request, mode):
     if mode == "channel":
         assert _backupInDir(backupDir, t1, t2)
     #Test backup of all channels in subdirs
-    else:
+    elif mode == "subdirs":
         channels = [name for name in os.listdir(path) if os.path.isdir(os.path.join(path, name)) and name != "backups" ]
         for channel in channels:
             channelDir = os.path.join(backupDir, channel)
             assert _backupInDir(channelDir, t1, t2)
+    else:
+        pytest.fail("Unknown mode: {}".format(mode))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

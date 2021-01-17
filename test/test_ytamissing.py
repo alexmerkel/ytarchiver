@@ -65,6 +65,8 @@ def test_findMissing(request, capsys, mode):
         #Compare
         captured = capsys.readouterr()
         assert captured.err.strip().endswith("DIR must be a directory")
+    else:
+        pytest.fail("Unknown mode: {}".format(mode))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

@@ -85,6 +85,8 @@ def test_updateStatistics(capsys, tempcopy, db, mode):
     elif mode == "network":
         with pytest.raises(RequestException):
             ytameta.updateStatistics(db)
+    else:
+        pytest.fail("Unknown mode: {}".format(mode))
 # ########################################################################### #
 
 @pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", os.environ["YTA_TEST_LATESTDB"]))
@@ -174,6 +176,8 @@ def test_updateAllStatistics(request, capsys, tempallarchive, mode):
         ytameta.updateAllStatistics(path)
         captured = capsys.readouterr()
         assert captured.out.splitlines()[-1].startswith("ERROR: Network error while trying to update the statistics")
+    else:
+        pytest.fail("Unknown mode: {}".format(mode))
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
