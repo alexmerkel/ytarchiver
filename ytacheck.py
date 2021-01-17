@@ -20,7 +20,7 @@ def check(args, parsed=False):
         parser.add_argument("DIR", help="The directory to work in")
         parser.add_argument("-a", "--all", action="store_const", dest="all", const=True, default=False, help="Run checker for all subdirectories with archive databases")
         parser.add_argument("-c", "--check", action="store_const", dest="check", const=True, default=False, help="Perform additional integrity check using ffmpeg")
-        args = parser.parse_args()
+        args = parser.parse_args(args)
 
     #Run checker for all subdirectories
     if args.all:
@@ -41,9 +41,9 @@ def check(args, parsed=False):
         yta.upgradeDatabase(dbPath)
 
         db = yta.connectDB(dbPath)
-        r = db.execute("SELECT youtubeID,filename,checksum FROM videos;")
+        r = db.execute("SELECT id,filename,checksum FROM videos;")
         for f in r.fetchall():
-            files.append({"checksum" : f[2], "name" : f[1], "youtubeID" : f[0]})
+            files.append({"checksum" : f[2], "name" : f[1], "id" : f[0]})
     except sqlite3.Error as e:
         sys.exit("ERROR: Unable to read from database (Error: \"{}\")".format(e))
 
@@ -69,7 +69,7 @@ def check(args, parsed=False):
         checksum = yta.calcSHA(filepath)
 
         if not f["checksum"]:
-            db.execute("UPDATE videos SET checksum = ? WHERE youtubeID = ?", (checksum, f["youtubeID"]))
+            db.execute("UPDATE videos SET checksum = ? WHERE id = ?", (checksum, f["id"]))
             print("WARNING: File \"{}\" no checksum in database, adding {}".format(f["name"], checksum))
         else:
             if f["checksum"] == checksum:
