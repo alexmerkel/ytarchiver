@@ -350,7 +350,7 @@ class DoubleLogger:
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     try:
-        archive(sys.argv)
+        archive(sys.argv[1:])
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #

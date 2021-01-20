@@ -77,7 +77,7 @@ def findMissing(args):
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     try:
-        findMissing(sys.argv)
+        findMissing(sys.argv[1:])
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #

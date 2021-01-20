@@ -29,7 +29,7 @@ def postprocess(args):
     parser.add_argument("-r", "--replace", action="store_const", dest="replace", const=True, default=False, help="Replace existing file")
     parser.add_argument("PATH", help="The file or the directory to work with")
     parser.add_argument("LANG", nargs='?', default="", help="The video language")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     path = os.path.normpath(os.path.abspath(args.PATH))
     if os.path.isfile(path):
@@ -385,7 +385,7 @@ def createOrConnectDB(path):
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     try:
-        postprocess(sys.argv)
+        postprocess(sys.argv[1:])
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #

@@ -555,7 +555,7 @@ def getResetTimestamp():
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     try:
-        addMetadata(sys.argv)
+        addMetadata(sys.argv[1:])
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #

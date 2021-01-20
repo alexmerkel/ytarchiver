@@ -20,7 +20,7 @@ def main(args):
     parser.add_argument("-4k", "--4K", action="store_const", dest="quality", const="4k", help="Limit download resolution to 4K (default)")
     parser.add_argument("-hd", "--HD", action="store_const", dest="quality", const="hd", help="Limit download resolution to full HD")
     parser.add_argument("VIDEO", help="The Youtube video or playlist ID")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     #Set format string
     dlformat = yta.getFormatString(args.quality)
@@ -110,7 +110,7 @@ def secToTime(sec):
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     try:
-        main(sys.argv)
+        main(sys.argv[1:])
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #

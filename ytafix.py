@@ -22,7 +22,7 @@ def fix(args, parsed=False):
         parser.add_argument("-a", "--all", action="store_const", dest="all", const=True, default=False, help="Run fixer for all subdirectories with archive databases. In this mode, the ARTIST will always be read from the database")
         parser.add_argument("DIR", help="The directory to work in")
         parser.add_argument("ARTIST", nargs='?', help="The correct artist name (read from the database if not given)")
-        args = parser.parse_args()
+        args = parser.parse_args(args)
 
     #Run fixer for all subdirectories
     if args.all:
@@ -153,7 +153,7 @@ def fixAll(args):
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     try:
-        fix(sys.argv)
+        fix(sys.argv[1:])
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #

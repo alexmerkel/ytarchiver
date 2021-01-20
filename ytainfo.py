@@ -16,7 +16,7 @@ def addInfo(args):
     '''
     parser = argparse.ArgumentParser(prog="ytainfo", description="Add channel info to existing archive databases")
     parser.add_argument("DIR", help="The directory containing the archive database to work on")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
 
     path = os.path.normpath(os.path.abspath(args.DIR))
     dbPath = os.path.join(path, "archive.db")
@@ -176,7 +176,7 @@ def createOrConnectDB(path):
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     try:
-        addInfo(sys.argv)
+        addInfo(sys.argv[1:])
     except KeyboardInterrupt:
         print("Aborted!")
 # ########################################################################### #
