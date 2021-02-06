@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 ''' unit test suite for ytaformats '''
 
-import os
-import sqlite3
-import subprocess
 import pytest
 
 import ytaformats
