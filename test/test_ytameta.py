@@ -210,7 +210,7 @@ def test_getMetadata(capsys, expException):
 @pytest.mark.network
 @pytest.mark.parametrize("lang,expected", [
     ("en", "INFO: Added subtitle"),
-    ("de", "ERROR: No subtitle with language"),
+    ("de", "INFO: No subtitle with language"),
     pytest.param("en", "ERROR: Unable to amend", marks=pytest.mark.disable_requests)],
     ids=["available", "unavailable", "network"])
 @pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "subtest.db"))
@@ -226,7 +226,7 @@ def test_amendCaption(capsys, tempcopy, db, lang, expected):
         if video[2]:
             assert captured.out.startswith(expected)
         else:
-            assert captured.out.startswith(expected) or captured.out.startswith("ERROR: No subtitle with language")
+            assert captured.out.startswith(expected) or captured.out.startswith("INFO: No subtitle with language")
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #

@@ -456,7 +456,7 @@ def amendCaption(db, dbID, youtubeID, lang):
                 sub = s
                 break
     if not sub:
-        print("ERROR: No subtitle with language \"{}\" for video \"{}\" available".format(lang, youtubeID))
+        print("INFO: No subtitle with language \"{}\" for video \"{}\" available".format(lang, youtubeID))
         return
     #Download subtitles
     try:
