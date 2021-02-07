@@ -7,6 +7,7 @@ import re
 import argparse
 import time
 import sqlite3
+import random
 import youtube_dl
 from youtube_dl.utils import read_batch_urls as readBatchURLs
 from requests.exceptions import RequestException
@@ -195,17 +196,22 @@ def archiveAll(args):
     if not subdirs:
         print("ERROR: No subdirs with archive databases at \'{}\'".format(path))
         return
+    random.shuffle(subdirs)
     #Print message
-    print("ARCHIVING ALL CHANNELS IN \'{}\'\n".format(path))
+    channels = len(subdirs)
+    if channels > 1:
+        print("ARCHIVING ALL {} CHANNELS IN \'{}\'\n".format(channels, path))
     #Initiate error log
     errorLog = ""
     #Loop through all subdirs
+    counter = 0
     for subdir in subdirs:
+        counter += 1
         name = os.path.basename(os.path.normpath(subdir))
         args.DIR = subdir
         args.LANG = None
         args.VIDEO = None
-        print("\nARCHIVING \'{}\'".format(name))
+        print("\nARCHIVING \'{}\' ({}/{})".format(name, counter, channels))
         archive(args, True)
         #Read errors from log
         error = ""
