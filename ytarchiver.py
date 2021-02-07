@@ -111,6 +111,11 @@ def archive(args, parsed=False):
             print("ERROR: Unable to replace video with ID \"{}\" as it is not in the archive database".format(args.VIDEO))
             return
 
+    #Get format string
+    if not args.quality:
+        args.quality = db.execute("SELECT maxresolution FROM channel WHERE id=1;").fetchone()[0]
+    dlformat = yta.getFormatString(args.quality)
+
     #Close database
     yta.closeDB(db)
 
@@ -119,7 +124,6 @@ def archive(args, parsed=False):
     dbPath = os.path.join(path, "archive.db")
     writeDownloadedFile(dbPath, dlfilePath, args.replace, args.VIDEO)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
-    dlformat = yta.getFormatString(args.quality)
     ytapostPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ytapost.py")
     ytapost = "{} {} {} {{}} {}".format(ytapostPath, args.check, args.replace, args.LANG)
 
