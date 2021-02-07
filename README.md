@@ -88,6 +88,17 @@ $ ytacheck.py [-c] DIR
 where `DIR` is the directory containing the video files and the `archive.db` database and the optional `-c` flag results in an additional integrity check
 of each file using ffmpeg.
 
+Testing
+-------
+
+`ytarchiver` includes a test suite build with `pytest`. The test can be run by calling
+```
+$ python3 -m pytest
+```
+from inside the main directory. In order to perform all tests, a Youtube API key is required (see above). The key can either be specified with the
+environment variable `YTA_TEST_APIKEY` or by adding it to a config file. The expected location of the config file depends on the system and `pytest` will
+throw an error with the expected location if it can't find an API key.
+
 Requirements
 ------------
 
@@ -101,6 +112,7 @@ Requirements
 *   [pycountry](https://pypi.org/project/pycountry/)
 *   [pytz](https://pypi.org/project/pytz/)
 *   [appdirs](https://pypi.org/project/appdirs/)
+*   [pytest](https://pypi.org/project/pytest/) (for testing)
 
 License
 -------

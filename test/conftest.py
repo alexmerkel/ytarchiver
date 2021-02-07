@@ -53,7 +53,7 @@ def pytest_sessionfinish(session, exitstatus):
 
 # --------------------------------------------------------------------------- #
 @pytest.fixture(autouse=True)
-def _tubeMarker(request):
+def _autotubeMarker(request):
     '''Add apikey fixture if the tube marker is used'''
     if request.node.get_closest_marker("tube"):
         request.getfixturevalue("apikey")
