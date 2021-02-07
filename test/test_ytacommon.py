@@ -9,6 +9,12 @@ import utils
 import ytacommon
 
 # --------------------------------------------------------------------------- #
+def test_dbVersion():
+    '''Verify that the test were updated for the latest db version'''
+    assert os.environ["YTA_TEST_LATESTDB"] == "dbv{}.db".format(ytacommon.__dbversion__)
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 def test_calcSHA():
     '''Test the SHA256 calculation'''
     #Perform calculation
