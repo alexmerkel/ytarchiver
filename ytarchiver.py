@@ -43,6 +43,12 @@ def archive(args, parsed=False):
         parser.add_argument("VIDEO", nargs='?', help="The Youtube video or playlist ID (read from the database if not given)")
         args = parser.parse_args(args)
 
+        if args.all and args.file:
+            parser.error("-a cannot be used in combination with batch file")
+        if args.all and args.replace:
+            parser.error("-a cannot be used in combination with replace")
+
+
     #Check if API key provided
     yta.getAPIKey(True)
 
