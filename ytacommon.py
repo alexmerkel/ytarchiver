@@ -494,7 +494,7 @@ def getAPIKey(askWhenMissing=False):
         if os.environ.get("YTA_TEST_APIKEY"):
             return os.environ.get("YTA_TEST_APIKEY")
         #In test mode, but no test API key, print warning
-        print("WARNING: No test API key given, trying to use \"normal\" API key")
+        raise Exception("ERROR: No test API key given")
 
     dirs = AppDirs("ytarchiver", "yta")
     try:
