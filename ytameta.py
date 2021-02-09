@@ -108,7 +108,10 @@ def getMetadata(youtubeID):
     else:
         tags = None
     #Extract statistics
-    viewCount = yta.toInt(d["items"][0]["statistics"]["viewCount"])
+    try:
+        viewCount = yta.toInt(d["items"][0]["statistics"]["viewCount"])
+    except KeyError:
+        viewCount = None
     try:
         likeCount = yta.toInt(d["items"][0]["statistics"]["likeCount"])
     except KeyError:
@@ -117,7 +120,7 @@ def getMetadata(youtubeID):
         dislikeCount = yta.toInt(d["items"][0]["statistics"]["dislikeCount"])
     except KeyError:
         dislikeCount = None
-    if isinstance(viewCount, int):
+    if isinstance(viewCount, int) or isinstance(likeCount, int):
         statisticsUpdated = int(time.time())
     else:
         statisticsUpdated = None
