@@ -153,7 +153,9 @@ def processFile(name, subLang, db, check, replace):
     except OSError:
         print("ERROR: Unable to load metadata for {}".format(videoID))
     if timestamp:
-        dateTime = datetime.strftime(datetime.fromtimestamp(timestamp, tz=timezone.utc), "%Y:%m:%d %H:%M:%S+0")
+        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        dateTime = datetime.strftime(dt, "%Y:%m:%d %H:%M:%S+0")
+        date = datetime.strftime(dt, "%Y-%m-%d")
     else:
         dateTime = r[0:4] + ':' + r[4:6] + ':' + r[6:8] + " 00:00:00+0"
         timestamp = datetime.timestamp(datetime.strptime(dateTime + "000", "%Y:%m:%d %H:%M:%S%z"))

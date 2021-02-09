@@ -81,7 +81,7 @@ def getMetadata(youtubeID):
     if not apiKey:
         raise yta.NoAPIKeyError
     #Get metadata
-    url = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails%2Csnippet%2Cstatistics&id={}&key={}".format(youtubeID, apiKey)
+    url = "https://www.googleapis.com/youtube/v3/videos?part=contentDetails%2Csnippet%2Cstatistics%2CliveStreamingDetails&id={}&key={}".format(youtubeID, apiKey)
     r = requests.get(url)
     r.raise_for_status()
     d = r.json()
@@ -90,10 +90,14 @@ def getMetadata(youtubeID):
         print("WARNING: No metadata available for " + youtubeID)
         return [None, None, None, None, None, None, None, None]
     #Convert update time to timestamp
+    if "liveStreamingDetails" in d["items"][0] and "actualStartTime" in d["items"][0]["liveStreamingDetails"]:
+        dtString = d["items"][0]["liveStreamingDetails"]["actualStartTime"]
+    else:
+        dtString = d["items"][0]["snippet"]["publishedAt"]
     try:
-        timestamp = int(datetime.timestamp(datetime.strptime(d["items"][0]["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%S.%f%z")))
+        timestamp = int(datetime.timestamp(datetime.strptime(dtString, "%Y-%m-%dT%H:%M:%S.%f%z")))
     except ValueError:
-        timestamp = int(datetime.timestamp(datetime.strptime(d["items"][0]["snippet"]["publishedAt"], "%Y-%m-%dT%H:%M:%S%z")))
+        timestamp = int(datetime.timestamp(datetime.strptime(dtString, "%Y-%m-%dT%H:%M:%S%z")))
     #Get description
     description = d["items"][0]["snippet"]["description"]
     #Convert duration to seconds
