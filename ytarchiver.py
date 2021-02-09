@@ -128,7 +128,7 @@ def archive(args, parsed=False):
     ytapost = "{} {} {} {{}} {}".format(ytapostPath, args.check, args.replace, args.LANG)
 
     #Set options
-    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False}
+    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False, "youtube_include_dash_manifest": True, "retries": 10, "fragment_retries": 25, "skip_unavailable_fragments": False, "continuedl": True, }
     ytdlOpts["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}, {"key": "FFmpegMetadata"}, {"key": "EmbedThumbnail","already_have_thumbnail": False}, {"key": "ExecAfterDownload", "exec_cmd": ytapost}]
 
     #Check if archiving one video/playlist or using a batch file
