@@ -112,9 +112,11 @@ def archive(args, parsed=False):
             return
 
     #Get format string
-    if not args.quality:
-        args.quality = db.execute("SELECT maxresolution FROM channel WHERE id=1;").fetchone()[0]
-    dlformat = yta.getFormatString(args.quality)
+    if args.quality:
+        q = args.quality
+    else:
+        q = db.execute("SELECT maxresolution FROM channel WHERE id=1;").fetchone()[0]
+    dlformat = yta.getFormatString(q)
 
     #Close database
     yta.closeDB(db)
