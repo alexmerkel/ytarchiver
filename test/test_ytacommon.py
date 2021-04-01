@@ -257,6 +257,16 @@ def test_extractChapters(num):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("interval,expected", [(0, "00:00 min"), (5, "00:05 min"), (46.24, "00:46 min"), (203, "03:23 min"), (2520, "42:00 min"), (3654, "01:00:54 h"), (51441, "14:17:21 h")], ids=["zero", "sec", "secF", "minSec", "min", "hourSec", "hourMinSec"])
+def test_intervalToStr(interval,expected):
+    '''Test the conversion to a human readable string'''
+    #Convert
+    received = ytacommon.intervalToStr(interval)
+    #Compare
+    assert received == expected
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 @pytest.mark.parametrize("var,expected", [(10, 10), ("11", 11), (12.1, 12), ("13.2", None), ("abc", None), (None, None)], ids=["int", "str_int", "float", "float_str", "str", "none"])
 def test_toInt(var,expected):
     '''Test the conversion to integer'''

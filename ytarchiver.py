@@ -79,6 +79,8 @@ def archive(args, parsed=False):
         else:
             ytainfo.createEmpty(dbPath)
 
+    t1 = time.time()
+
     #Check if database needs upgrade
     yta.upgradeDatabase(dbPath)
 
@@ -147,6 +149,9 @@ def archive(args, parsed=False):
         with youtube_dl.YoutubeDL(ytdlOpts) as ytdl:
             ytdl.download(url)
 
+    #Print status
+    print("Download complete, updating database...")
+
     #Open database
     db = yta.connectDB(dbPath)
 
@@ -168,6 +173,10 @@ def archive(args, parsed=False):
 
     #Close database
     yta.closeDB(db)
+
+    #Print time
+    t2 = time.time()
+    print("DONE! Duration: " + yta.intervalToStr(t2-t1))
 
     #Remove download archive file
     try:
@@ -194,6 +203,8 @@ def archiveAll(args):
     args.captions = False
     args.amendcaptions = False
 
+    t1 = time.time()
+
     #Get path
     path = os.path.normpath(os.path.abspath(args.DIR))
     #Get subdirs in path
@@ -210,6 +221,7 @@ def archiveAll(args):
     #Initiate error log
     errorLog = ""
     #Loop through all subdirs
+    t2 = time.time()
     counter = 0
     for subdir in subdirs:
         counter += 1
@@ -235,6 +247,8 @@ def archiveAll(args):
     with open(logFile, 'w+') as f:
         f.writelines(errorLog)
 
+    t3 = time.time()
+
     #Check if statistics is set to autoupdate
     autoUpdateStatistics = False
     if not updateStatistics or updateCaptions:
@@ -253,12 +267,22 @@ def archiveAll(args):
 
     #Update statistics
     if updateStatistics or autoUpdateStatistics or updateCaptions or amendCaptions:
+        statTime = True
         try:
             ytameta.updateAllStatistics(path, autoUpdateStatistics, updateCaptions, amendCaptions)
         except yta.NoAPIKeyError:
             print("ERROR: Unable to update video statistics as no API key is available")
         except RequestException as e:
             print("ERROR: Unable to update video statistics due to connection error: \"{}\"".format(e))
+    else:
+        statTime = False
+
+    #Print time
+    t4 = time.time()
+    print("\nTotal runtime: {}\nArchive runtime: {}".format(yta.intervalToStr(t4-t1), yta.intervalToStr(t3-t2)))
+    if statTime:
+        print("Statistic runtime: " + yta.intervalToStr(t4-t3))
+
 
     print("\nDONE!")
 # ########################################################################### #

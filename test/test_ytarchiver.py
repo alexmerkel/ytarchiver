@@ -80,7 +80,7 @@ def test_yta_caps(request, capsys, temparchive):
     ytarchiver.archive(['-u', path])
     captured = capsys.readouterr()
     #Compare
-    assert captured.out.strip().endswith("INFO: Video [{}] \"{}\" had captions added since archiving".format(expID, expTitle))
+    assert "INFO: Video [{}] \"{}\" had captions added since archiving".format(expID, expTitle) in captured.out
     #Amend subtitles
     ytarchiver.archive(['-x', path])
     captured = capsys.readouterr()
@@ -88,7 +88,7 @@ def test_yta_caps(request, capsys, temparchive):
     recCap = db.execute("SELECT subtitles FROM videos WHERE id=1;").fetchone()[0]
     db.close()
     #Compare
-    assert captured.out.strip().endswith("INFO: Added subtitle \"{}\" for video \"{}\" to the database".format("en", expID))
+    assert "INFO: Added subtitle \"{}\" for video \"{}\" to the database".format("en", expID) in captured.out
     assert expCap == recCap
 # ########################################################################### #
 

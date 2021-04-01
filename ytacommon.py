@@ -552,6 +552,33 @@ def readAPIKey(filePath):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
+def intervalToStr(interval):
+    '''Convert a interval to a human readable string
+
+    :param interval: the interval in seconds
+    :type interval: integer or float
+    :returns: String representation either as HH:MM:SS or MM:SS
+    :rtype: string
+    '''
+    interval = int(interval)
+    #Get hours
+    if interval > 3600:
+        h = interval // 3600
+        ret = "{:02d}:".format(h)
+        interval = interval % 3600
+        f = 'h'
+    else:
+        ret = ''
+        f = "min"
+    #Get minutes and seconds
+    m = interval // 60
+    s = interval % 60
+    ret += "{:02d}:{:02d} {}".format(m, s, f)
+    #Return string
+    return ret
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 class NoAPIKeyError(Exception):
     '''Raised if no API key was provided'''
 # ########################################################################### #
