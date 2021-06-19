@@ -46,13 +46,14 @@ def test_formatsFunc(capsys, mode):
     #Test single video
     elif mode == "vid":
         #Set expected
-        exp = ["Example 6 (01:00)", "315 - 3840x2160 (2160p60)+140 - audio only (tiny)"]
+        exp = ["Example 6 (01:00)", "3840x2160 (2160p60)+140"]
         #Get formats
         ytaformats.main(["19qObzFI878"])
         #Process output
         rec = _processOutput(capsys.readouterr(), 2)
         #Compare
-        assert rec == exp
+        assert rec[0] == exp[0]
+        assert exp[1] in rec[1]
     #Unknown mode
     else:
         pytest.fail("Unknown mode: {}".format(mode))

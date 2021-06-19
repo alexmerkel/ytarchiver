@@ -35,7 +35,7 @@ def test_addMetadata(request, capsys, temparchive, expException):
         ytameta.addMetadata([path])
         #Compare
         db = sqlite3.connect(os.path.join(path, "archive.db"))
-        assert len(db.execute("SELECT id FROM videos WHERE duration != 60;").fetchall()) == 0
+        assert len(db.execute("SELECT id FROM videos WHERE duration NOT BETWEEN 59 AND 61;").fetchall()) == 0
         assert len(db.execute("SELECT id FROM videos WHERE timestamp >= 1609286401 and timestamp <= 1609304400;").fetchall()) == 6
         assert len(db.execute("SELECT id FROM videos WHERE tags = \"\";").fetchall()) == 0
         assert db.execute("SELECT tags FROM videos WHERE id = 1;").fetchone()[0] == "example\none\nvideo\ntest"
@@ -197,7 +197,9 @@ def test_getMetadata(capsys, expException):
         received = ytameta.getMetadata("0-cN7NVjXxc")
         t2 = int(time.time())
         #Compare
-        assert received[0:4] == [1609286401, 60, "example\none\nvideo\ntest", "The first example video\n\n0:00 Grow one\n0:30 Halt one\n0:45 Shrink one\n\nLD\nCaptions\n\nGoodbye"]
+        assert received[0] == 1609286401
+        assert 59 <= received[1] <= 61
+        assert received[2:4] == ["example\none\nvideo\ntest", "The first example video\n\n0:00 Grow one\n0:30 Halt one\n0:45 Shrink one\n\nLD\nCaptions\n\nGoodbye"]
         assert t1 <= received[7] <= t2
         #Test nonexisting video
         received = ytameta.getMetadata("01234567890")
