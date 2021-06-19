@@ -7,6 +7,7 @@ import re
 import argparse
 import time
 import sqlite3
+import json
 import random
 import youtube_dl
 from youtube_dl.utils import read_batch_urls as readBatchURLs
@@ -207,44 +208,90 @@ def archiveAll(args):
 
     #Get path
     path = os.path.normpath(os.path.abspath(args.DIR))
-    #Get subdirs in path
-    subdirs = [os.path.join(path, name) for name in sorted(os.listdir(path), key=str.casefold) if os.path.isdir(os.path.join(path, name))]
-    subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
-    if not subdirs:
-        print("ERROR: No subdirs with archive databases at \'{}\'".format(path))
-        return
-    random.shuffle(subdirs)
-    #Print message
-    channels = len(subdirs)
-    if channels > 1:
-        print("ARCHIVING ALL {} CHANNELS IN \'{}\'\n".format(channels, path))
+
+    #Check for progress file in directory
+    progressPath = os.path.join(path, "progress.json")
+    try:
+        with open(progressPath, 'r') as f:
+            progress = json.load(f)
+        if (t1 - progress["abortTime"]) > 3600:
+            progress = {"elapsed": 0}
+            os.remove(progressPath)
+    except OSError:
+        progress = {"elapsed": 0}
+    logFile = os.path.join(path, "log")
+
+    if "subdirs" in progress:
+        subdirs = progress["subdirs"]
+        counter = progress["counter"] - 1
+        channels = progress["channels"]
+        #Print message
+        if channels > 1:
+            print("CONTINUING ARCHIVING ALL {} CHANNELS IN \'{}\'\n".format(channels, path))
+    else:
+        #Get subdirs in path
+        subdirs = [os.path.join(path, name) for name in sorted(os.listdir(path), key=str.casefold) if os.path.isdir(os.path.join(path, name))]
+        subdirs = [sub for sub in subdirs if os.path.isfile(os.path.join(sub, "archive.db"))]
+        random.shuffle(subdirs)
+        if not subdirs:
+            print("ERROR: No subdirs with archive databases at \'{}\'".format(path))
+            return
+        #Prepare
+        channels = len(subdirs)
+        progress["channels"] = channels
+        counter = 0
+        with open(logFile, 'w') as f:
+            f.truncate()
+        #Print message
+        if channels > 1:
+            print("ARCHIVING ALL {} CHANNELS IN \'{}\'\n".format(channels, path))
     #Initiate error log
     errorLog = ""
     #Loop through all subdirs
-    t2 = time.time()
-    counter = 0
-    for subdir in subdirs:
-        counter += 1
-        name = os.path.basename(os.path.normpath(subdir))
-        args.DIR = subdir
-        args.LANG = None
-        args.VIDEO = None
-        print("\nARCHIVING \'{}\' ({}/{})".format(name, counter, channels))
-        archive(args, True)
-        #Read errors from log
-        error = ""
-        with open(os.path.join(subdir, "log"), 'r') as f:
-            lines = f.readlines()
-            for i in range(len(lines)):
-                if lines[i].startswith("ERROR"):
-                    error += "\n" + lines[i-1] + lines[i]
-        if error:
-            errorLog += '\n\n' + name + '\n' + error
-    #Print error log
+    try:
+        t2 = time.time()
+        leftover = subdirs.copy()
+        for subdir in subdirs:
+            counter += 1
+            name = os.path.basename(os.path.normpath(subdir))
+            args.DIR = subdir
+            args.LANG = None
+            args.VIDEO = None
+            print("\nARCHIVING \'{}\' ({}/{})".format(name, counter, channels))
+            archive(args, True)
+            #Read errors from log
+            error = ""
+            with open(os.path.join(subdir, "log"), 'r') as f:
+                lines = f.readlines()
+                for i in range(len(lines)):
+                    if lines[i].startswith("ERROR"):
+                        error += "\n" + lines[i-1] + lines[i]
+            if error:
+                errorLog += '\n\n' + name + '\n' + error
+            leftover.remove(subdir)
+    except KeyboardInterrupt:
+        #Aborting, write progress file and log
+        t = time.time()
+        progress["counter"] = counter
+        progress["subdirs"] = leftover
+        progress["elapsed"] += t - t2
+        progress["abortTime"] = t
+        with open(progressPath, 'w') as f:
+            json.dump(progress, f)
+        if errorLog:
+            with open(logFile, 'a') as f:
+                f.writelines(errorLog)
+        #Rethrow exception
+        raise
+    #Progress file no longer relevant, removing it
+    try:
+        os.remove(progressPath)
+    except OSError:
+        pass
+    #Write error log
     if not errorLog:
         errorLog = "No errors\n"
-    logFile = os.path.join(path, "log")
-    with open(logFile, 'w+') as f:
+    with open(logFile, 'a') as f:
         f.writelines(errorLog)
 
     t3 = time.time()
@@ -279,7 +326,7 @@ def archiveAll(args):
 
     #Print time
     t4 = time.time()
-    print("\nTotal runtime: {}\nArchive runtime: {}".format(yta.intervalToStr(t4-t1), yta.intervalToStr(t3-t2)))
+    print("\nTotal runtime: {}\nArchive runtime: {}".format(yta.intervalToStr(progress["elapsed"]+(t4-t1)), yta.intervalToStr(progress["elapsed"]+(t3-t2))))
     if statTime:
         print("Statistic runtime: " + yta.intervalToStr(t4-t3))
 
