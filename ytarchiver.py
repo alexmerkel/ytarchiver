@@ -11,6 +11,7 @@ import json
 import random
 import youtube_dl
 from youtube_dl.utils import read_batch_urls as readBatchURLs
+from youtube_dl.utils import match_filter_func as matchFilterFunc
 from requests.exceptions import RequestException
 import ytacommon as yta
 import ytainfo
@@ -42,6 +43,7 @@ def archive(args, parsed=False):
         parser.add_argument("DIR", help="The directory to work in")
         parser.add_argument("LANG", nargs='?', help="The video language (read from the database if not given)")
         parser.add_argument("-f", "--file", action="store", dest="file", help="Read IDs to archive from a batch file with one ID per line")
+        group.add_argument("--filter", action="store", dest="filter", default=None, help="Filter videos to download using Youtube-dl's match filter option")
         parser.add_argument("VIDEO", nargs='?', help="The Youtube video or playlist ID (read from the database if not given)")
         args = parser.parse_args(args)
 
@@ -133,8 +135,10 @@ def archive(args, parsed=False):
     ytapost = "{} {} {} {{}} {}".format(ytapostPath, args.check, args.replace, args.LANG)
 
     #Set options
-    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False, "youtube_include_dash_manifest": True, "retries": 10, "fragment_retries": 25, "skip_unavailable_fragments": False, "continuedl": True, }
+    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False, "youtube_include_dash_manifest": True, "retries": 10, "fragment_retries": 25, "skip_unavailable_fragments": False, "continuedl": True}
     ytdlOpts["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}, {"key": "FFmpegMetadata"}, {"key": "EmbedThumbnail","already_have_thumbnail": False}, {"key": "ExecAfterDownload", "exec_cmd": ytapost}]
+    if args.filter:
+        ytdlOpts["match_filter"] = matchFilterFunc(args.filter)
 
     #Check if archiving one video/playlist or using a batch file
     if args.file:

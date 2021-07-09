@@ -227,6 +227,27 @@ def test_yta_all_caps(request, capsys, tempallarchive):
 # ########################################################################### #
 
 # --------------------------------------------------------------------------- #
+@pytest.mark.network
+@pytest.mark.tube
+@pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", os.environ["YTA_TEST_LATESTDB"]))
+def test_yta_filter(request, capsys, temparchive):
+    ''' Test filtering videos '''
+    #Get path
+    path = request.node.get_closest_marker("internal_path").args[0]
+    #Prepare database
+    db = sqlite3.connect(os.path.join(path, "archive.db"))
+    db.execute("DELETE FROM videos;")
+    db.commit()
+    db.close()
+    #Check filter
+    filterStr = "uploader = 'wrong channel'"
+    ytarchiver.archive(["--filter", filterStr, path])
+    captured = capsys.readouterr()
+    #Compare
+    assert captured.out.count("does not pass filter uploader") == 6
+# ########################################################################### #
+
+# --------------------------------------------------------------------------- #
 @pytest.mark.internal_path(os.path.join(os.environ["YTA_TESTDATA"], "dbversions", os.environ["YTA_TEST_LATESTDB"]))
 def test_writeDownloadedFile(request, tempdir, tempcopy):
     ''' Test writeDownloadedFile '''
