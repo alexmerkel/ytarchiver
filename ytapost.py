@@ -384,6 +384,39 @@ def createOrConnectDB(path):
     return dbCon
 # ########################################################################### #
 
+
+# --------------------------------------------------------------------------- #
+class PostHook:
+    '''Youtube-dl progress hook'''
+
+    def __init__(self, lang, db, check, replace):
+        '''Init
+
+        :param lang: The language identifier
+        :type lang: string
+        :param db: Connection to the metadata database
+        :type db: sqlite3.Connection
+        :param check: Whether to perform an integrity check and calc the checksum
+        :type check: boolean
+        :param replace: Whether to replace a video already in the archive database
+        :type replace: boolean
+        '''
+        self._lang = lang
+        self._db = db
+        self._check = check
+        self._replace = replace
+
+    def finished(self, filename):
+        '''Called after all the postprocessors are done
+
+        :param filename: The complete filepath of the processed video
+        :type filename: string
+        '''
+        print("[ytarchiver] Post-processing \"{}\"".format(filename))
+        processFile(filename, self._lang, self._db, self._check, self._replace)
+        self._db.commit()
+# ########################################################################### #
+
 # --------------------------------------------------------------------------- #
 if __name__ == "__main__":
     try:

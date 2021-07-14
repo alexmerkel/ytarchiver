@@ -14,6 +14,7 @@ from yt_dlp.utils import read_batch_urls as readBatchURLs
 from yt_dlp.utils import match_filter_func as matchFilterFunc
 from requests.exceptions import RequestException
 import ytacommon as yta
+from ytapost import PostHook
 import ytainfo
 import ytameta
 
@@ -123,20 +124,16 @@ def archive(args, parsed=False):
         q = db.execute("SELECT maxresolution FROM channel WHERE id=1;").fetchone()[0]
     dlformat = yta.getFormatString(q)
 
-    #Close database
-    yta.closeDB(db)
-
     #Prepare download
     dlfilePath = os.path.join(path, "downloaded")
     dbPath = os.path.join(path, "archive.db")
     writeDownloadedFile(dbPath, dlfilePath, args.replace, args.VIDEO)
     dlpath = os.path.join(path, "ID%(id)s&%(title)s.%(ext)s")
-    ytapostPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "ytapost.py")
-    ytapost = "{} {} {} {{}} {}".format(ytapostPath, args.check, args.replace, args.LANG)
+    postHook = PostHook(args.LANG, db, args.check, args.replace)
 
     #Set options
-    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False, "youtube_include_dash_manifest": True, "retries": 10, "fragment_retries": 25, "skip_unavailable_fragments": False, "continuedl": True, "extractor_args": {"youtube": {"player_client": "android"}}, "throttledratelimit": 100000, "allow_playlist_files": False}
-    ytdlOpts["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}, {"key": "FFmpegMetadata"}, {"key": "EmbedThumbnail","already_have_thumbnail": False}, {"key": "ExecAfterDownload", "exec_cmd": ytapost}]
+    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False, "youtube_include_dash_manifest": True, "retries": 10, "fragment_retries": 25, "skip_unavailable_fragments": False, "continuedl": True, "extractor_args": {"youtube": {"player_client": ["android"]}}, "throttledratelimit": 100000, "allow_playlist_files": False, "post_hooks": [postHook.finished]}
+    ytdlOpts["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}, {"key": "FFmpegMetadata"}, {"key": "EmbedThumbnail","already_have_thumbnail": False}]
     if args.filter:
         ytdlOpts["match_filter"] = matchFilterFunc(args.filter)
 
@@ -156,9 +153,6 @@ def archive(args, parsed=False):
 
     #Print status
     print("Download complete, updating database...")
-
-    #Open database
-    db = yta.connectDB(dbPath)
 
     #Update video number and totalsize
     try:

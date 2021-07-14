@@ -15,8 +15,7 @@ $ ytarchiver.py [-a] [-c] [-s] DIR [LANG] [VIDEO]
 where `DIR` is the directory in which to store the downloaded files, `LANG` is the subtitle language to include (e.g. `en`) and `VIDEO` is the ID or URL used by
 YouTube to identify a video or playlist (e.g. `dQw4w9WgXcQ`). The optional `-c` flag instructs the script to verify the integrity of the downloaded
 video file using ffmpeg. In addition to the metadata stored inside the video file, a database called `archive.db` is created, where the metadata as
-well as a checksum are stored. After youtube-dl completed its process, the script `ytapost.py` will be called automatically to perform the
-post-processing steps. The `VIDEO` can be omitted if the specified directory contains a file called `playlist` which contains the ID of the playlist
+well as a checksum are stored. The `VIDEO` can be omitted if the specified directory contains a file called `playlist` which contains the ID of the playlist
 to archive. The `LANG` can be omitted as well if, in addition to the `playlist` file, the specified directory contains a file called `language` which contains
 the subtitle language code (e.g. `en` for English, `de` for German, etc). Alternatively, the playlist and language info can also be stored inside the archive
 database along with additional information about the channel. This is the recommended way when archiving a channel where the archive is updated as new videos
@@ -41,7 +40,7 @@ which directs `ytarchiver` to always update the statistics when being called for
 
 More flags an options are described in the help:
 ```
-usage: ytarchiver [-h] [-a] [-c] [-s | -u | -x] [-r] [-8k | -4k | -hd] [-V] [-f FILE] DIR [LANG] [VIDEO]
+usage: ytarchiver [-h] [-a] [-c] [-s | -u | -x] [-r] [-8k] [-4k] [-hd] [-V] [-f FILE] [--filter FILTER] DIR [LANG] [VIDEO]
 
 Download and archive Youtube videos or playlists
 
@@ -63,6 +62,7 @@ optional arguments:
   -hd, --HD             Limit download resolution to full HD
   -V, --version         show program's version number and exit
   -f FILE, --file FILE  Read IDs to archive from a batch file with one ID per line
+  --filter FILTER       Filter videos to download using Youtube-dl's match filter option
 ```
 
 ytamissing.py
