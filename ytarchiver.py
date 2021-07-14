@@ -9,9 +9,9 @@ import time
 import sqlite3
 import json
 import random
-import youtube_dl
-from youtube_dl.utils import read_batch_urls as readBatchURLs
-from youtube_dl.utils import match_filter_func as matchFilterFunc
+import yt_dlp
+from yt_dlp.utils import read_batch_urls as readBatchURLs
+from yt_dlp.utils import match_filter_func as matchFilterFunc
 from requests.exceptions import RequestException
 import ytacommon as yta
 import ytainfo
@@ -135,7 +135,7 @@ def archive(args, parsed=False):
     ytapost = "{} {} {} {{}} {}".format(ytapostPath, args.check, args.replace, args.LANG)
 
     #Set options
-    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False, "youtube_include_dash_manifest": True, "retries": 10, "fragment_retries": 25, "skip_unavailable_fragments": False, "continuedl": True}
+    ytdlOpts = {"call_home": False, "quiet": False, "format": dlformat, "ignoreerrors": True, "download_archive": dlfilePath, "writesubtitles": True, "subtitleslangs": [args.LANG], "writedescription": True, "writethumbnail": True, "outtmpl": dlpath, "cachedir": False, "youtube_include_dash_manifest": True, "retries": 10, "fragment_retries": 25, "skip_unavailable_fragments": False, "continuedl": True, "extractor_args": {"youtube": {"player_client": "android"}}, "throttledratelimit": 100000, "allow_playlist_files": False}
     ytdlOpts["postprocessors"] = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}, {"key": "FFmpegMetadata"}, {"key": "EmbedThumbnail","already_have_thumbnail": False}, {"key": "ExecAfterDownload", "exec_cmd": ytapost}]
     if args.filter:
         ytdlOpts["match_filter"] = matchFilterFunc(args.filter)
@@ -151,7 +151,7 @@ def archive(args, parsed=False):
     logFile = os.path.join(path, "log")
     #Download
     with DoubleLogger(logFile):
-        with youtube_dl.YoutubeDL(ytdlOpts) as ytdl:
+        with yt_dlp.YoutubeDL(ytdlOpts) as ytdl:
             ytdl.download(url)
 
     #Print status

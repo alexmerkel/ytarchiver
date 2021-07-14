@@ -4,8 +4,9 @@ ytarchiver
 ytarchiver.py
 -------------
 
-A script to download and archive Youtube content by leveraging [youtube-dl](https://github.com/ytdl-org/youtube-dl). Either a single video
-or an entire playlist can be downloaded, the thumbnail and (if available) subtitles will be embedded and a database containing metadata will be created.
+A script to download and archive Youtube content by leveraging [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+(a [youtube-dl](https://github.com/ytdl-org/youtube-dl) fork). Either a single video or an entire playlist can be downloaded,
+the thumbnail and (if available) subtitles will be embedded and a database containing metadata will be created.
 
 Usage:
 ```
@@ -105,9 +106,8 @@ Requirements
 *   [python3](https://www.python.org/)
 *   [ffmpeg](https://www.ffmpeg.org/)
 *   [exiftool](https://www.sno.phy.queensu.ca/~phil/exiftool/)
-*   [AtomicParsley](http://atomicparsley.sourceforge.net/)
 
-*   [youtube_dl](https://pypi.org/project/youtube_dl/)
+*   [yt-dlp](https://pypi.org/project/yt-dlp/)
 *   [requests](https://pypi.org/project/requests/)
 *   [pycountry](https://pypi.org/project/pycountry/)
 *   [pytz](https://pypi.org/project/pytz/)

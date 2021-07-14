@@ -3,7 +3,7 @@
 
 import sys
 import argparse
-import youtube_dl
+import yt_dlp
 import ytacommon as yta
 
 # --------------------------------------------------------------------------- #
@@ -30,7 +30,7 @@ def main(args):
 
     #Get info
     videos = []
-    with youtube_dl.YoutubeDL(ydlOpts) as ydl:
+    with yt_dlp.YoutubeDL(ydlOpts) as ydl:
         info = ydl.extract_info(args.VIDEO, download=False)
         try:
             for e in info.get('entries'):
